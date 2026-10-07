@@ -32,6 +32,13 @@ check-format:
 format:
 	dart format --line-length 120 .
 
+snap:
+	flutter build linux --release
+	snapcraft --destructive-mode
+
+snap-upload:
+	snapcraft upload --release=stable deskconn_*_amd64.snap
+
 setup-quic:
 	mkdir -p android/app/src/main/jniLibs/arm64-v8a
 	curl -L https://github.com/xconnio/xconn-dart/releases/latest/download/libdart_quic_ffi-android-arm64.so \
