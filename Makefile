@@ -18,5 +18,13 @@ format:
 	dart format --line-length 120 .
 
 # XConn Core's Dart build hook downloads and bundles the native library.
+
+snap:
+	flutter build linux --release
+	snapcraft --destructive-mode
+
+snap-upload:
+	snapcraft upload --release=stable deskconn_*_amd64.snap
+
 build-apk:
 	flutter build apk --no-tree-shake-icons --target-platform android-arm64
