@@ -1,6 +1,7 @@
 import 'package:deskconn_mobile_app/theme/buttons.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:deskconn_mobile_app/theme/inputs.dart';
+import 'package:deskconn_mobile_app/theme/page_transitions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,6 +22,7 @@ class DeskconnTheme {
 
     return ThemeData(
       useMaterial3: true,
+      pageTransitionsTheme: deskconnPageTransitions,
       colorScheme: scheme,
       scaffoldBackgroundColor: DeskconnColors.body,
       cardColor: scheme.surface,
@@ -76,6 +78,7 @@ class DeskconnTheme {
 
     return ThemeData(
       useMaterial3: true,
+      pageTransitionsTheme: deskconnPageTransitions,
       colorScheme: scheme,
       scaffoldBackgroundColor: DeskconnColors.darkBackground,
       cardColor: scheme.surface,
