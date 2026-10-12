@@ -16,7 +16,6 @@ import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/file_stream_server.dart';
-import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
 import 'package:deskconn_mobile_app/core/file_explorer/file_explorer_controller.dart';
 import 'package:deskconn_mobile_app/core/file_explorer/models.dart';
 import 'package:deskconn_mobile_app/core/file_explorer/utils.dart';
@@ -24,7 +23,6 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.da
 import 'package:deskconn_mobile_app/screens/image_editor_screen.dart';
 import 'package:deskconn_mobile_app/screens/text_editor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
-import 'package:deskconn_mobile_app/widgets/desktop_status_pill.dart';
 
 class FileExplorerScreen extends StatefulWidget {
   final DesktopSessionLaunchConfig config;
@@ -594,16 +592,6 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               ),
             if (_clipboardEntries.isNotEmpty) _buildClipboardBanner(),
             Expanded(child: _buildBody()),
-            if (!showSidebar)
-              SafeArea(
-                top: false,
-                child: DesktopStatusPill.forSession(
-                  name: widget.config.desktopName,
-                  isP2P: widget.config.webRtcEnabled,
-                  palette: DeskconnPalette.of(context),
-                  onTap: () => switchMachine(context, currentRealm: widget.config.realm),
-                ),
-              ),
           ],
         ),
       ),

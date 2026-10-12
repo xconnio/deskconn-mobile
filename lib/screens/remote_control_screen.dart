@@ -5,10 +5,7 @@ import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
-import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart' show saveToDevice;
-import 'package:deskconn_mobile_app/theme/colors.dart';
-import 'package:deskconn_mobile_app/widgets/desktop_status_pill.dart';
 import 'package:flutter/material.dart';
 import 'package:xconn/xconn.dart';
 
@@ -457,16 +454,6 @@ class _RemoteControlViewState extends State<RemoteControlView> {
       children: [
         if (_reconnecting) const LinearProgressIndicator(minHeight: 2),
         Expanded(child: _buildBody(context)),
-        if (!widget.embedded)
-          SafeArea(
-            top: false,
-            child: DesktopStatusPill.forSession(
-              name: widget.config.desktopName,
-              isP2P: widget.config.webRtcEnabled,
-              palette: DeskconnPalette.of(context),
-              onTap: () => switchMachine(context, currentRealm: widget.config.realm),
-            ),
-          ),
       ],
     );
   }
