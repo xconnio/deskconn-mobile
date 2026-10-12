@@ -39,6 +39,8 @@ Uint8List _coerceBytes(dynamic raw) {
 
 enum _DesktopConnectionStatus { checking, routed, p2p, offline }
 
+const String _prefKeyLauncherOrder = 'launcher_order';
+
 class DesktopDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> desktop;
 
@@ -55,6 +57,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   final DesktopWindowManager _windowManager = DesktopWindowManager();
   bool _dockAutoHide = false;
   final Map<String, GlobalKey<NavigatorState>> _appNavigators = {};
+  List<String> _launcherOrder = [];
 
   String? get _realm => widget.desktop['realm']?.toString();
 
@@ -64,12 +67,32 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     unawaited(_probeDesktopConnection());
     unawaited(_loadCachedWallpaper());
     unawaited(_loadDockAutoHide());
+    unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
   }
 
   Future<void> _loadDockAutoHide() async {
     final prefs = await SharedPreferences.getInstance();
     if (mounted) setState(() => _dockAutoHide = prefs.getBool(prefKeyDockAutoHide) ?? false);
+  }
+
+  Future<void> _loadLauncherOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final order = prefs.getStringList(_prefKeyLauncherOrder);
+    if (order != null && mounted) setState(() => _launcherOrder = order);
+  }
+
+  List<String> _orderedLauncherIds(Iterable<String> ids) {
+    final available = ids.toSet();
+    return [..._launcherOrder.where(available.contains), ...ids.where((id) => !_launcherOrder.contains(id))];
+  }
+
+  void _moveLauncherTile(List<String> ids, String id, String targetId) {
+    if (id == targetId) return;
+    final order = [...ids]..remove(id);
+    order.insert(ids.indexOf(targetId), id);
+    setState(() => _launcherOrder = order);
+    unawaited(SharedPreferences.getInstance().then((prefs) => prefs.setStringList(_prefKeyLauncherOrder, order)));
   }
 
   @override
@@ -297,87 +320,108 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                         child: Builder(
                           builder: (context) {
                             final palette = DeskconnPalette.of(context);
-                            return GridView.count(
-                              padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
-                              crossAxisCount: 4,
-                              crossAxisSpacing: 4,
-                              mainAxisSpacing: 4,
-                              childAspectRatio: 0.85,
-                              children: [
-                                _LauncherTile(
-                                  icon: Icons.description_outlined,
-                                  badgeColor: palette.osUbuntu,
-                                  title: "Documents",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openFileExplorer(context, category: 'documents'),
-                                ),
-                                _LauncherTile(
-                                  icon: Icons.folder_open,
-                                  badgeColor: palette.osKubuntu,
-                                  title: "Files",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openFileExplorer(context),
-                                ),
-                                _LauncherTile(
-                                  icon: Icons.image_outlined,
-                                  badgeColor: palette.osXubuntu,
-                                  title: "Photos",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openFileExplorer(context, category: 'images'),
-                                ),
-                                _LauncherTile(
-                                  icon: Icons.settings_remote_outlined,
+                            final tiles = <String, Widget>{
+                              'documents': _LauncherTile(
+                                icon: Icons.description_outlined,
+                                badgeColor: palette.osUbuntu,
+                                title: "Documents",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openFileExplorer(context, category: 'documents'),
+                              ),
+                              'files': _LauncherTile(
+                                icon: Icons.folder_open,
+                                badgeColor: palette.osKubuntu,
+                                title: "Files",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openFileExplorer(context),
+                              ),
+                              'photos': _LauncherTile(
+                                icon: Icons.image_outlined,
+                                badgeColor: palette.osXubuntu,
+                                title: "Photos",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openFileExplorer(context, category: 'images'),
+                              ),
+                              'remote': _LauncherTile(
+                                icon: Icons.settings_remote_outlined,
+                                badgeColor: palette.osMint,
+                                title: "Remote Ctrl",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openRemoteControl(context),
+                              ),
+                              'terminal': _LauncherTile(
+                                icon: Icons.terminal,
+                                badgeColor: palette.osDebian,
+                                title: "Terminal",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openTerminal(context),
+                              ),
+                              'videos': _LauncherTile(
+                                icon: Icons.video_library_outlined,
+                                badgeColor: palette.osWindows,
+                                title: "Videos",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openFileExplorer(context, category: 'videos'),
+                              ),
+                              'monitor': _LauncherTile(
+                                icon: Icons.speed_outlined,
+                                badgeColor: palette.osUbuntu,
+                                title: "Monitor",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openResourceMonitor(context),
+                              ),
+                              'ports': _LauncherTile(
+                                icon: Icons.swap_horiz,
+                                badgeColor: palette.osXubuntu,
+                                title: "Ports",
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                                onTap: () => _openPortForward(context),
+                              ),
+                              if (Platform.isAndroid)
+                                'vpn': _LauncherTile(
+                                  icon: Icons.vpn_lock_outlined,
                                   badgeColor: palette.osMint,
-                                  title: "Remote Ctrl",
+                                  title: "VPN",
                                   enabled: terminalEnabled,
                                   onWallpaper: wallpaper != null,
-                                  onTap: () => _openRemoteControl(context),
+                                  onTap: () => _openVpn(context),
                                 ),
-                                _LauncherTile(
-                                  icon: Icons.terminal,
-                                  badgeColor: palette.osDebian,
-                                  title: "Terminal",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openTerminal(context),
-                                ),
-                                _LauncherTile(
-                                  icon: Icons.video_library_outlined,
-                                  badgeColor: palette.osWindows,
-                                  title: "Videos",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openFileExplorer(context, category: 'videos'),
-                                ),
-                                _LauncherTile(
-                                  icon: Icons.speed_outlined,
-                                  badgeColor: palette.osUbuntu,
-                                  title: "Monitor",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openResourceMonitor(context),
-                                ),
-                                _LauncherTile(
-                                  icon: Icons.swap_horiz,
-                                  badgeColor: palette.osXubuntu,
-                                  title: "Ports",
-                                  enabled: terminalEnabled,
-                                  onWallpaper: wallpaper != null,
-                                  onTap: () => _openPortForward(context),
-                                ),
-                                if (Platform.isAndroid)
-                                  _LauncherTile(
-                                    icon: Icons.vpn_lock_outlined,
-                                    badgeColor: palette.osMint,
-                                    title: "VPN",
-                                    enabled: terminalEnabled,
-                                    onWallpaper: wallpaper != null,
-                                    onTap: () => _openVpn(context),
-                                  ),
-                              ],
+                            };
+                            final ids = _orderedLauncherIds(tiles.keys);
+                            return Align(
+                              alignment: Alignment.bottomCenter,
+                              child: GridView.count(
+                                shrinkWrap: true,
+                                padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 4,
+                                mainAxisSpacing: 4,
+                                childAspectRatio: 0.85,
+                                children: [
+                                  for (final id in ids)
+                                    DragTarget<String>(
+                                      key: ValueKey(id),
+                                      onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
+                                      builder: (context, candidates, _) => LongPressDraggable<String>(
+                                        data: id,
+                                        feedback: Material(
+                                          type: MaterialType.transparency,
+                                          child: SizedBox(width: 80, height: 94, child: tiles[id]),
+                                        ),
+                                        childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
+                                        child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             );
                           },
                         ),
