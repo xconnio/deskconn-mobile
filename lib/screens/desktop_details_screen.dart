@@ -271,6 +271,12 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
             if (!didPop) unawaited(_handleMobileBack());
           },
           child: Scaffold(
+            bottomNavigationBar: _DesktopNavBar(
+              onWallpaper: wallpaper != null,
+              onMachineTap: _openMachines,
+              onWindowsTap: () => _showRunningApps(context),
+              onSettingsTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            ),
             body: Stack(
               fit: StackFit.expand,
               children: [
@@ -380,13 +386,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                         status: _connectionStatus,
                         name: widget.desktop['name']?.toString() ?? '',
                         onWallpaper: wallpaper != null,
-                      ),
-                      _DesktopNavBar(
-                        onWallpaper: wallpaper != null,
-                        onMachineTap: _openMachines,
-                        onWindowsTap: () => _showRunningApps(context),
-                        onSettingsTap: () =>
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
                       ),
                     ],
                   ),
