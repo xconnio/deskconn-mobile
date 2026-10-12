@@ -1,6 +1,9 @@
 name: Build & Upload to Play Store
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       track:
@@ -63,12 +66,12 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
           packageName: io.xconn.deskconn
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: ${{ inputs.track }}
+          track: ${{ inputs.track || 'internal' }}
           status: completed
 
       - name: Notify Discord
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-          -d "{\"content\": \"New Deskconn Mobile Play Store upload successful (track: ${{ inputs.track }})\"}" \
+          -d "{\"content\": \"New Deskconn Mobile Play Store upload successful (track: ${{ inputs.track || 'internal' }})\"}" \
           ${{ secrets.DISCORD_WEBHOOK }}
