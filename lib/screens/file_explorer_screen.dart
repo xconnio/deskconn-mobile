@@ -532,12 +532,12 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       for (final entry in entries) {
         files.add((entry.name, await _controller!.read(_fullPath(entry))));
       }
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
       await shareFileBytesList(files);
       if (mounted) _exitSelectionMode();
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.of(context, rootNavigator: true).pop();
         _showErrorSnackBar('Share failed: $e');
       }
     }
@@ -1145,14 +1145,14 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       final bytes = await _downloadBytes(path, entry.name);
       final savedPath = await saveToDevice(entry.name, bytes);
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Saved: $savedPath'), duration: const Duration(seconds: 5)));
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.of(context, rootNavigator: true).pop();
         _showErrorSnackBar('Download failed: $e');
       }
     }
@@ -1190,7 +1190,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     final remotePath = _currentBrowse!.path;
     if (!mounted) return;
 
-    final nav = Navigator.of(context);
+    final nav = Navigator.of(context, rootNavigator: true);
     final messenger = ScaffoldMessenger.of(context);
 
     int totalBytes = 0;

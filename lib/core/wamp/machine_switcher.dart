@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 Future<void> switchMachine(BuildContext context, {String? currentRealm}) {
   return Navigator.of(
     context,
+    rootNavigator: true,
   ).push<void>(MaterialPageRoute(builder: (_) => MachinesScreen(currentRealm: currentRealm)));
 }
 

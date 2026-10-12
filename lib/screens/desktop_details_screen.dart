@@ -54,6 +54,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   Uint8List? _wallpaperBytes;
   final DesktopWindowManager _windowManager = DesktopWindowManager();
   bool _dockAutoHide = false;
+  final Map<String, GlobalKey<NavigatorState>> _appNavigators = {};
 
   String? get _realm => widget.desktop['realm']?.toString();
 
@@ -133,6 +134,121 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     }
   }
 
+  DesktopWindowEntry? get _activeMobileApp {
+    DesktopWindowEntry? top;
+    for (final w in _windowManager.windows) {
+      if (w.minimized || !_appNavigators.containsKey(w.id)) continue;
+      if (top == null || w.zIndex > top.zIndex) top = w;
+    }
+    return top;
+  }
+
+  void _openMobileApp(
+    DesktopAppKind kind, {
+    String? category,
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    bool handlesBack = false,
+    required Widget Function(VoidCallback minimize, VoidCallback close) builder,
+  }) {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    late final String id;
+    void minimize() => _minimizeMobileApp(id);
+    void close() => _closeMobileApp(id);
+    final app = builder(minimize, close);
+    final entry = _windowManager.open(
+      kind,
+      category: category,
+      title: title,
+      icon: icon,
+      iconColor: iconColor,
+      content: Navigator(
+        key: navigatorKey,
+        onGenerateInitialRoutes: (_, _) => [
+          PageRouteBuilder<void>(pageBuilder: (_, _, _) => const SizedBox.shrink()),
+          MaterialPageRoute<void>(
+            builder: (_) => handlesBack
+                ? app
+                : PopScope(
+                    canPop: false,
+                    onPopInvokedWithResult: (didPop, _) {
+                      if (!didPop) minimize();
+                    },
+                    child: app,
+                  ),
+          ),
+        ],
+      ),
+      workspaceSize: MediaQuery.sizeOf(context),
+    );
+    id = entry.id;
+    _appNavigators.putIfAbsent(id, () => navigatorKey);
+    _showMobileApp(id);
+  }
+
+  void _minimizeMobileApp(String id) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _windowManager.minimize(id);
+  }
+
+  void _showMobileApp(String id) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    for (final w in _windowManager.windows) {
+      if (w.id != id && !w.minimized) _windowManager.minimize(w.id);
+    }
+    _windowManager.restore(id);
+  }
+
+  void _closeMobileApp(String id) {
+    _appNavigators.remove(id);
+    _windowManager.close(id);
+  }
+
+  Future<void> _handleMobileBack() async {
+    final app = _activeMobileApp;
+    if (app == null) return;
+    final handled = await _appNavigators[app.id]?.currentState?.maybePop() ?? false;
+    if (!handled) _minimizeMobileApp(app.id);
+  }
+
+  void _showRunningApps(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => ListenableBuilder(
+        listenable: _windowManager,
+        builder: (sheetContext, _) {
+          final apps = _windowManager.windows.where((w) => _appNavigators.containsKey(w.id)).toList();
+          if (apps.isEmpty) {
+            return const SizedBox(height: 120, child: Center(child: Text('No running apps')));
+          }
+          return SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final app in apps)
+                  ListTile(
+                    leading: Icon(app.icon, color: app.iconColor),
+                    title: Text(app.title),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Close',
+                      onPressed: () => _closeMobileApp(app.id),
+                    ),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _showMobileApp(app.id);
+                    },
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final terminalEnabled =
@@ -145,129 +261,148 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
       return _buildDesktopWorkspace(context, wallpaper: wallpaper, terminalEnabled: terminalEnabled);
     }
 
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          wallpaper != null
-              ? Image.memory(
-                  wallpaper,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(color: Theme.of(context).scaffoldBackgroundColor),
-                )
-              : Container(color: Theme.of(context).scaffoldBackgroundColor),
-          if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
-          SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    return ListenableBuilder(
+      listenable: _windowManager,
+      builder: (context, _) {
+        final activeApp = _activeMobileApp;
+        return PopScope(
+          canPop: activeApp == null,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) unawaited(_handleMobileBack());
+          },
+          child: Scaffold(
+            body: Stack(
+              fit: StackFit.expand,
               children: [
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final palette = DeskconnPalette.of(context);
-                      return GridView.count(
-                        padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 4,
-                        mainAxisSpacing: 4,
-                        childAspectRatio: 0.85,
-                        children: [
-                          _LauncherTile(
-                            icon: Icons.description_outlined,
-                            badgeColor: palette.osUbuntu,
-                            title: "Documents",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openFileExplorer(context, category: 'documents'),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.folder_open,
-                            badgeColor: palette.osKubuntu,
-                            title: "Files",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openFileExplorer(context),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.image_outlined,
-                            badgeColor: palette.osXubuntu,
-                            title: "Photos",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openFileExplorer(context, category: 'images'),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.settings_remote_outlined,
-                            badgeColor: palette.osMint,
-                            title: "Remote Ctrl",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openRemoteControl(context),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.terminal,
-                            badgeColor: palette.osDebian,
-                            title: "Terminal",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openTerminal(context),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.video_library_outlined,
-                            badgeColor: palette.osWindows,
-                            title: "Videos",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openFileExplorer(context, category: 'videos'),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.speed_outlined,
-                            badgeColor: palette.osUbuntu,
-                            title: "Monitor",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openResourceMonitor(context),
-                          ),
-                          _LauncherTile(
-                            icon: Icons.swap_horiz,
-                            badgeColor: palette.osXubuntu,
-                            title: "Ports",
-                            enabled: terminalEnabled,
-                            onWallpaper: wallpaper != null,
-                            onTap: () => _openPortForward(context),
-                          ),
-                          if (Platform.isAndroid)
-                            _LauncherTile(
-                              icon: Icons.vpn_lock_outlined,
-                              badgeColor: palette.osMint,
-                              title: "VPN",
-                              enabled: terminalEnabled,
-                              onWallpaper: wallpaper != null,
-                              onTap: () => _openVpn(context),
-                            ),
-                        ],
-                      );
-                    },
+                wallpaper != null
+                    ? Image.memory(
+                        wallpaper,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(color: Theme.of(context).scaffoldBackgroundColor),
+                      )
+                    : Container(color: Theme.of(context).scaffoldBackgroundColor),
+                if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
+                SafeArea(
+                  bottom: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            final palette = DeskconnPalette.of(context);
+                            return GridView.count(
+                              padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 4,
+                              mainAxisSpacing: 4,
+                              childAspectRatio: 0.85,
+                              children: [
+                                _LauncherTile(
+                                  icon: Icons.description_outlined,
+                                  badgeColor: palette.osUbuntu,
+                                  title: "Documents",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openFileExplorer(context, category: 'documents'),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.folder_open,
+                                  badgeColor: palette.osKubuntu,
+                                  title: "Files",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openFileExplorer(context),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.image_outlined,
+                                  badgeColor: palette.osXubuntu,
+                                  title: "Photos",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openFileExplorer(context, category: 'images'),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.settings_remote_outlined,
+                                  badgeColor: palette.osMint,
+                                  title: "Remote Ctrl",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openRemoteControl(context),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.terminal,
+                                  badgeColor: palette.osDebian,
+                                  title: "Terminal",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openTerminal(context),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.video_library_outlined,
+                                  badgeColor: palette.osWindows,
+                                  title: "Videos",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openFileExplorer(context, category: 'videos'),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.speed_outlined,
+                                  badgeColor: palette.osUbuntu,
+                                  title: "Monitor",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openResourceMonitor(context),
+                                ),
+                                _LauncherTile(
+                                  icon: Icons.swap_horiz,
+                                  badgeColor: palette.osXubuntu,
+                                  title: "Ports",
+                                  enabled: terminalEnabled,
+                                  onWallpaper: wallpaper != null,
+                                  onTap: () => _openPortForward(context),
+                                ),
+                                if (Platform.isAndroid)
+                                  _LauncherTile(
+                                    icon: Icons.vpn_lock_outlined,
+                                    badgeColor: palette.osMint,
+                                    title: "VPN",
+                                    enabled: terminalEnabled,
+                                    onWallpaper: wallpaper != null,
+                                    onTap: () => _openVpn(context),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      _ConnectionStatusChip(
+                        status: _connectionStatus,
+                        name: widget.desktop['name']?.toString() ?? '',
+                        onWallpaper: wallpaper != null,
+                      ),
+                      _DesktopNavBar(
+                        onWallpaper: wallpaper != null,
+                        onMachineTap: _openMachines,
+                        onWindowsTap: () => _showRunningApps(context),
+                        onSettingsTap: () =>
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                      ),
+                    ],
                   ),
                 ),
-                _ConnectionStatusChip(
-                  status: _connectionStatus,
-                  name: widget.desktop['name']?.toString() ?? '',
-                  onWallpaper: wallpaper != null,
-                ),
-                _DesktopNavBar(
-                  onWallpaper: wallpaper != null,
-                  onMachineTap: _openMachines,
-                  onWindowsTap: () {},
-                  onSettingsTap: () =>
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-                ),
+                for (final entry in _windowManager.windows)
+                  if (_appNavigators.containsKey(entry.id))
+                    Offstage(
+                      key: ValueKey(entry.id),
+                      offstage: entry.id != activeApp?.id,
+                      child: TickerMode(enabled: entry.id == activeApp?.id, child: entry.content),
+                    ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -521,7 +656,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         return;
       }
 
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => RemoteControlScreen(config: config)));
+      _openMobileApp(
+        DesktopAppKind.remoteControl,
+        title: 'Remote Ctrl',
+        icon: Icons.settings_remote_outlined,
+        iconColor: DeskconnPalette.of(context).osMint,
+        builder: (_, _) => RemoteControlScreen(config: config),
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Remote Control: $e")));
@@ -562,7 +703,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         return;
       }
 
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => ResourceMonitorScreen(config: config)));
+      _openMobileApp(
+        DesktopAppKind.resourceMonitor,
+        title: 'Monitor',
+        icon: Icons.speed_outlined,
+        iconColor: DeskconnPalette.of(context).osUbuntu,
+        builder: (_, _) => ResourceMonitorScreen(config: config),
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Resource Monitor: $e")));
@@ -603,7 +750,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         return;
       }
 
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => PortForwardScreen(config: config)));
+      _openMobileApp(
+        DesktopAppKind.portForward,
+        title: 'Ports',
+        icon: Icons.swap_horiz,
+        iconColor: DeskconnPalette.of(context).osXubuntu,
+        builder: (_, _) => PortForwardScreen(config: config),
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Port Forwarding: $e")));
@@ -653,14 +806,15 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
       final config = _terminalConfig(realm: realm, authId: authId, privateKey: privateKey, status: _connectionStatus);
 
+      final palette = DeskconnPalette.of(context);
+      final title = switch (category) {
+        'documents' => 'Documents',
+        'images' => 'Photos',
+        'videos' => 'Videos',
+        _ => 'Files',
+      };
+
       if (isDesktopLayout(context)) {
-        final palette = DeskconnPalette.of(context);
-        final title = switch (category) {
-          'documents' => 'Documents',
-          'images' => 'Photos',
-          'videos' => 'Videos',
-          _ => 'Files',
-        };
         late final VoidCallback closeFilesWindow;
         final entry = _windowManager.open(
           DesktopAppKind.fileExplorer,
@@ -682,11 +836,15 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         return;
       }
 
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => FileExplorerScreen(config: config, category: category),
-        ),
+      _openMobileApp(
+        DesktopAppKind.fileExplorer,
+        category: category,
+        title: title,
+        icon: Icons.folder_open,
+        iconColor: palette.osKubuntu,
+        handlesBack: true,
+        builder: (minimize, _) =>
+            FileExplorerScreen(config: config, category: category, embedded: true, onRequestClose: minimize),
       );
     } catch (e) {
       if (context.mounted) {
@@ -737,12 +895,25 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         return;
       }
 
-      _appendTerminalLog("Navigating to terminal screen");
+      _appendTerminalLog("Opening terminal app");
 
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TerminalScreen(realm: realm, desktopName: desktopName, webRtcEnabled: webRtcEnabled),
+      _openMobileApp(
+        DesktopAppKind.terminal,
+        title: 'Terminal',
+        icon: Icons.terminal,
+        iconColor: DeskconnPalette.of(context).osDebian,
+        builder: (_, close) => Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            bottom: false,
+            child: TerminalTabsView(
+              realm: realm,
+              desktopName: desktopName,
+              webRtcEnabled: webRtcEnabled,
+              embedded: true,
+              onRequestClose: close,
+            ),
+          ),
         ),
       );
     } catch (e) {
