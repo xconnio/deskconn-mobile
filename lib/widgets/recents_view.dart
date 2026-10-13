@@ -124,37 +124,38 @@ class _RecentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final snapshot = app.snapshot;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(color: app.iconColor, borderRadius: BorderRadius.circular(7)),
-                child: Icon(app.icon, size: 16, color: Colors.white),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  app.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(color: app.iconColor, borderRadius: BorderRadius.circular(7)),
+                  child: Icon(app.icon, size: 16, color: Colors.white),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Center(
-              child: AspectRatio(
-                aspectRatio: aspectRatio,
-                child: GestureDetector(
-                  onTap: onTap,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    app.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: aspectRatio,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: snapshot != null
@@ -167,8 +168,8 @@ class _RecentCard extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

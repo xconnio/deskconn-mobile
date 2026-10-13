@@ -136,10 +136,7 @@ class DeskconnApp extends StatelessWidget {
 
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: DeskconnSystemUi.overlayStyle(brightness),
-                child: ExitGuard(
-                  navigatorKey: navigatorKey,
-                  child: _ReconnectingOverlay(child: child ?? const SizedBox.shrink()),
-                ),
+                child: _ReconnectingOverlay(child: child ?? const SizedBox.shrink()),
               );
             },
             home: const AppBootstrap(),

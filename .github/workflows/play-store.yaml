@@ -61,7 +61,6 @@ jobs:
           flutter build appbundle --no-tree-shake-icons --build-number=$((BASE + ${{ github.run_number }}))
 
       - name: Upload to Play Store
-        id: upload
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
@@ -74,5 +73,5 @@ jobs:
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-          -d "{\"content\": \"New Deskconn Mobile Play Store upload successful (track: ${{ inputs.track || 'internal' }})\n${{ steps.upload.outputs.internalSharingDownloadUrl }}\"}" \
+          -d "{\"content\": \"New Deskconn Mobile Play Store upload successful (track: ${{ inputs.track || 'internal' }})\nhttps://play.google.com/store/apps/details?id=io.xconn.deskconn\"}" \
           ${{ secrets.DISCORD_WEBHOOK }}
