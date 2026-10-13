@@ -11,6 +11,7 @@ import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
+import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart';
@@ -27,6 +28,7 @@ import 'package:deskconn_mobile_app/widgets/floating_window.dart';
 import 'package:deskconn_mobile_app/widgets/recents_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
@@ -103,6 +105,29 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
       image.dispose();
     }
     super.dispose();
+  }
+
+  void _handleMachineSwipe(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < 300) return;
+    final desktops = context.read<SessionProvider>().desktops;
+    final index = desktops.indexWhere((d) => d['realm']?.toString() == _realm);
+    if (index < 0 || desktops.length < 2) return;
+    final forward = velocity < 0;
+    final next = desktops[(index + (forward ? 1 : -1) + desktops.length) % desktops.length];
+    Navigator.of(context).pushAndRemoveUntil(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) => DesktopDetailsScreen(desktop: next),
+        transitionsBuilder: (_, animation, _, child) => SlideTransition(
+          position: Tween(
+            begin: Offset(forward ? 1 : -1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
+      ),
+      (_) => false,
+    );
   }
 
   Future<void> _openMachines() async {
@@ -400,56 +425,60 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                       )
                     : Container(color: Theme.of(context).scaffoldBackgroundColor),
                 if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
-                SafeArea(
-                  bottom: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: Builder(
-                          builder: (context) {
-                            final tiles = _launcherTiles(
-                              context,
-                              enabled: terminalEnabled,
-                              onWallpaper: wallpaper != null,
-                            );
-                            final ids = _orderedLauncherIds(tiles.keys);
-                            return Align(
-                              alignment: Alignment.bottomCenter,
-                              child: GridView.count(
-                                shrinkWrap: true,
-                                padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
-                                crossAxisCount: 4,
-                                crossAxisSpacing: 4,
-                                mainAxisSpacing: 4,
-                                childAspectRatio: 0.85,
-                                children: [
-                                  for (final id in ids)
-                                    DragTarget<String>(
-                                      key: ValueKey(id),
-                                      onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
-                                      builder: (context, candidates, _) => LongPressDraggable<String>(
-                                        data: id,
-                                        feedback: Material(
-                                          type: MaterialType.transparency,
-                                          child: SizedBox(width: 80, height: 94, child: tiles[id]),
+                GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragEnd: _handleMachineSwipe,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              final tiles = _launcherTiles(
+                                context,
+                                enabled: terminalEnabled,
+                                onWallpaper: wallpaper != null,
+                              );
+                              final ids = _orderedLauncherIds(tiles.keys);
+                              return Align(
+                                alignment: Alignment.bottomCenter,
+                                child: GridView.count(
+                                  shrinkWrap: true,
+                                  padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+                                  crossAxisCount: 4,
+                                  crossAxisSpacing: 4,
+                                  mainAxisSpacing: 4,
+                                  childAspectRatio: 0.85,
+                                  children: [
+                                    for (final id in ids)
+                                      DragTarget<String>(
+                                        key: ValueKey(id),
+                                        onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
+                                        builder: (context, candidates, _) => LongPressDraggable<String>(
+                                          data: id,
+                                          feedback: Material(
+                                            type: MaterialType.transparency,
+                                            child: SizedBox(width: 80, height: 94, child: tiles[id]),
+                                          ),
+                                          childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
+                                          child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
                                         ),
-                                        childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
-                                        child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
                                       ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      _ConnectionStatusChip(
-                        status: _connectionStatus,
-                        name: widget.desktop['name']?.toString() ?? '',
-                        onWallpaper: wallpaper != null,
-                      ),
-                    ],
+                        _ConnectionStatusChip(
+                          status: _connectionStatus,
+                          name: widget.desktop['name']?.toString() ?? '',
+                          onWallpaper: wallpaper != null,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 for (final entry in _windowManager.windows)
