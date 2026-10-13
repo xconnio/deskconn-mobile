@@ -140,15 +140,18 @@ class _TerminalTabsViewState extends State<TerminalTabsView> {
               onAdd: _addTab,
             ),
             Expanded(
-              child: IndexedStack(
-                index: activeIndex,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  for (final tab in tabs)
-                    TerminalPane(
+                  for (final (index, tab) in tabs.indexed)
+                    Visibility.maintain(
                       key: ValueKey(tab.id),
-                      controller: tab.controller,
-                      embedded: true,
-                      onRequestClose: () => _group.closeTab(tab.id),
+                      visible: index == activeIndex,
+                      child: TerminalPane(
+                        controller: tab.controller,
+                        embedded: true,
+                        onRequestClose: () => _group.closeTab(tab.id),
+                      ),
                     ),
                 ],
               ),
