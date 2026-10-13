@@ -198,4 +198,13 @@ void main() {
 
     expect(_chip('One'), findsNothing);
   });
+
+  testWidgets('machine dots sit above the status chip', (tester) async {
+    await _Harness().pump(tester);
+
+    final dots = tester.getRect(find.byType(AnimatedOpacity).first);
+    final chip = tester.getRect(_chip('One'));
+
+    expect(dots.bottom, lessThanOrEqualTo(chip.top));
+  });
 }

@@ -67,7 +67,6 @@ class MachinePager extends StatefulWidget {
 
 class _MachinePagerState extends State<MachinePager> {
   static const _indicatorLinger = Duration(milliseconds: 700);
-  static const _chipLift = 6.0;
 
   late final List<Map<String, dynamic>> _desktops;
   late final List<DesktopPageHandle> _handles;
@@ -184,7 +183,7 @@ class _MachinePagerState extends State<MachinePager> {
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: _chipLift,
+                    bottom: 0,
                     child: _ConnectionStatusChip(
                       status: current.status.value,
                       name: _desktops[_page]['name']?.toString() ?? '',
@@ -194,7 +193,7 @@ class _MachinePagerState extends State<MachinePager> {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 2,
+                  bottom: 30 + MediaQuery.textScalerOf(context).scale(17) + 10,
                   child: IgnorePointer(
                     child: AnimatedOpacity(
                       opacity: _showIndicator ? 1 : 0,
@@ -687,13 +686,10 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                         maintainSize: true,
                         maintainAnimation: true,
                         maintainState: true,
-                        child: Padding(
-                          padding: EdgeInsets.only(bottom: widget.handle == null ? 0 : _MachinePagerState._chipLift),
-                          child: _ConnectionStatusChip(
-                            status: _connectionStatus,
-                            name: widget.desktop['name']?.toString() ?? '',
-                            onWallpaper: wallpaper != null,
-                          ),
+                        child: _ConnectionStatusChip(
+                          status: _connectionStatus,
+                          name: widget.desktop['name']?.toString() ?? '',
+                          onWallpaper: wallpaper != null,
                         ),
                       ),
                     ],
