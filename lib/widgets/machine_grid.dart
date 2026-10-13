@@ -153,7 +153,7 @@ class _MachineGridState extends State<MachineGrid> {
   Future<void> _enterDesktop(BuildContext context, Map<String, dynamic> desktop) {
     return Navigator.of(
       context,
-    ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => DesktopDetailsScreen(desktop: desktop)), (route) => false);
+    ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => MachinePager(desktop: desktop)), (route) => false);
   }
 
   Future<bool> _showConnectionDialog(BuildContext context, Map<String, dynamic> desktop) async {

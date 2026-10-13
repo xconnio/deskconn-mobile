@@ -9,6 +9,7 @@ import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
+import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
@@ -39,16 +40,208 @@ enum _DesktopConnectionStatus { checking, routed, p2p, offline }
 
 const String _prefKeyLauncherOrder = 'launcher_order';
 
-class DesktopDetailsScreen extends StatefulWidget {
+class DesktopPageHandle {
+  VoidCallback? openRecents;
+  VoidCallback? openMachines;
+  final ValueNotifier<bool> appOpen = ValueNotifier(false);
+  final ValueNotifier<bool> hasWallpaper = ValueNotifier(false);
+
+  void dispose() {
+    appOpen.dispose();
+    hasWallpaper.dispose();
+  }
+}
+
+class MachinePager extends StatefulWidget {
   final Map<String, dynamic> desktop;
 
-  const DesktopDetailsScreen({super.key, required this.desktop});
+  const MachinePager({super.key, required this.desktop});
+
+  @override
+  State<MachinePager> createState() => _MachinePagerState();
+}
+
+class _MachinePagerState extends State<MachinePager> {
+  static const _indicatorLinger = Duration(milliseconds: 700);
+
+  late final List<Map<String, dynamic>> _desktops;
+  late final List<DesktopPageHandle> _handles;
+  late final PageController _controller;
+  late int _page;
+  bool _showSettings = false;
+  bool _showIndicator = false;
+  Timer? _indicatorTimer;
+
+  DesktopPageHandle get _current => _handles[_page];
+
+  @override
+  void initState() {
+    super.initState();
+    final all = context.read<SessionProvider>().desktops;
+    final realm = widget.desktop['realm']?.toString();
+    final index = all.indexWhere((d) => d['realm']?.toString() == realm);
+    _desktops = index < 0 ? [widget.desktop] : List.of(all);
+    _page = index < 0 ? 0 : index;
+    _handles = [for (var i = 0; i < _desktops.length; i++) DesktopPageHandle()];
+    for (final handle in _handles) {
+      handle.appOpen.addListener(_refresh);
+      handle.hasWallpaper.addListener(_refresh);
+    }
+    _controller = PageController(initialPage: _page);
+  }
+
+  @override
+  void dispose() {
+    _indicatorTimer?.cancel();
+    for (final handle in _handles) {
+      handle.dispose();
+    }
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  void _onPageChanged(int page) {
+    setState(() => _page = page);
+    final realm = _desktops[page]['realm']?.toString();
+    if (realm != null) unawaited(LastUsedRealmStore.set(realm));
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth != 0 || _desktops.length < 2) return false;
+    if (notification is ScrollStartNotification || notification is ScrollUpdateNotification) {
+      _indicatorTimer?.cancel();
+      if (!_showIndicator) setState(() => _showIndicator = true);
+    } else if (notification is ScrollEndNotification) {
+      _indicatorTimer?.cancel();
+      _indicatorTimer = Timer(_indicatorLinger, () {
+        if (mounted) setState(() => _showIndicator = false);
+      });
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isDesktopLayout(context)) return DesktopDetailsScreen(desktop: _desktops[_page]);
+
+    final current = _current;
+    return PopScope(
+      canPop: !_showSettings,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _showSettings = false);
+      },
+      child: Scaffold(
+        bottomNavigationBar: _DesktopNavBar(
+          onWallpaper: !_showSettings && current.hasWallpaper.value,
+          settingsSelected: _showSettings,
+          onMachineTap: () {
+            setState(() => _showSettings = false);
+            current.openMachines?.call();
+          },
+          onWindowsTap: () {
+            if (_showSettings) {
+              setState(() => _showSettings = false);
+              return;
+            }
+            current.openRecents?.call();
+          },
+          onSettingsTap: () => setState(() => _showSettings = true),
+        ),
+        body: IndexedStack(
+          index: _showSettings ? 1 : 0,
+          children: [
+            Stack(
+              fit: StackFit.expand,
+              children: [
+                NotificationListener<ScrollNotification>(
+                  onNotification: _onScroll,
+                  child: PageView.builder(
+                    controller: _controller,
+                    physics: current.appOpen.value ? const NeverScrollableScrollPhysics() : null,
+                    onPageChanged: _onPageChanged,
+                    itemCount: _desktops.length,
+                    itemBuilder: (context, index) => DesktopDetailsScreen(
+                      key: ValueKey(_desktops[index]['realm']),
+                      desktop: _desktops[index],
+                      handle: _handles[index],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 12,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _showIndicator ? 1 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: _PageIndicator(count: _desktops.length, controller: _controller),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SettingsScreen(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PageIndicator extends StatelessWidget {
+  final int count;
+  final PageController controller;
+
+  const _PageIndicator({required this.count, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final page = controller.hasClients && controller.position.haveDimensions
+            ? controller.page ?? controller.initialPage.toDouble()
+            : controller.initialPage.toDouble();
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < count; i++)
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.35 + 0.65 * (1 - (page - i).abs().clamp(0.0, 1.0))),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 3)],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class DesktopDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> desktop;
+  final DesktopPageHandle? handle;
+
+  const DesktopDetailsScreen({super.key, required this.desktop, this.handle});
 
   @override
   State<DesktopDetailsScreen> createState() => _DesktopDetailsScreenState();
 }
 
-class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
+class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => widget.handle != null;
+
   bool _openingTerminal = false;
   _DesktopConnectionStatus _connectionStatus = _DesktopConnectionStatus.checking;
   Uint8List? _wallpaperBytes;
@@ -69,6 +262,19 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     unawaited(_loadDockAutoHide());
     unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
+    final handle = widget.handle;
+    if (handle != null) {
+      handle.openRecents = () => _openRecents(context);
+      handle.openMachines = _openMachines;
+      _windowManager.addListener(_syncHandle);
+    }
+  }
+
+  void _syncHandle() {
+    final handle = widget.handle;
+    if (handle == null) return;
+    handle.appOpen.value = _activeMobileApp != null;
+    handle.hasWallpaper.value = _wallpaperBytes != null;
   }
 
   Future<void> _loadDockAutoHide() async {
@@ -105,29 +311,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
       image.dispose();
     }
     super.dispose();
-  }
-
-  void _handleMachineSwipe(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() < 300) return;
-    final desktops = context.read<SessionProvider>().desktops;
-    final index = desktops.indexWhere((d) => d['realm']?.toString() == _realm);
-    if (index < 0 || desktops.length < 2) return;
-    final forward = velocity < 0;
-    final next = desktops[(index + (forward ? 1 : -1) + desktops.length) % desktops.length];
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => DesktopDetailsScreen(desktop: next),
-        transitionsBuilder: (_, animation, _, child) => SlideTransition(
-          position: Tween(
-            begin: Offset(forward ? 1 : -1, 0),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-          child: child,
-        ),
-      ),
-      (_) => false,
-    );
   }
 
   Future<void> _openMachines() async {
@@ -390,9 +573,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final terminalEnabled = _appsEnabled;
 
     final wallpaper = _wallpaperBytes;
+    if (widget.handle != null && widget.handle!.hasWallpaper.value != (wallpaper != null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncHandle());
+    }
 
     if (isDesktopLayout(context)) {
       return _buildDesktopWorkspace(context, wallpaper: wallpaper, terminalEnabled: terminalEnabled);
@@ -408,12 +595,15 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
             if (!didPop) unawaited(_handleMobileBack());
           },
           child: Scaffold(
-            bottomNavigationBar: _DesktopNavBar(
-              onWallpaper: wallpaper != null,
-              onMachineTap: _openMachines,
-              onWindowsTap: () => _openRecents(context),
-              onSettingsTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            ),
+            bottomNavigationBar: widget.handle != null
+                ? null
+                : _DesktopNavBar(
+                    onWallpaper: wallpaper != null,
+                    onMachineTap: _openMachines,
+                    onWindowsTap: () => _openRecents(context),
+                    onSettingsTap: () =>
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                  ),
             body: Stack(
               fit: StackFit.expand,
               children: [
@@ -427,7 +617,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                 if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
                 GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onHorizontalDragEnd: _handleMachineSwipe,
+                  onVerticalDragUpdate: (_) {},
                   child: SafeArea(
                     bottom: false,
                     child: Column(
@@ -1192,6 +1382,7 @@ class _ConnectionStatusChip extends StatelessWidget {
 
 class _DesktopNavBar extends StatelessWidget {
   final bool onWallpaper;
+  final bool settingsSelected;
   final VoidCallback onMachineTap;
   final VoidCallback onWindowsTap;
   final VoidCallback onSettingsTap;
@@ -1201,6 +1392,7 @@ class _DesktopNavBar extends StatelessWidget {
     required this.onWindowsTap,
     required this.onSettingsTap,
     this.onWallpaper = false,
+    this.settingsSelected = false,
   });
 
   @override
@@ -1237,15 +1429,16 @@ class _DesktopNavBar extends StatelessWidget {
                 _DesktopNavBarItem(
                   icon: Icons.grid_view_rounded,
                   label: 'Apps',
-                  color: selectedColor,
+                  color: settingsSelected ? unselectedColor : selectedColor,
                   onTap: onWindowsTap,
-                  selected: true,
+                  selected: !settingsSelected,
                 ),
                 _DesktopNavBarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
-                  color: unselectedColor,
+                  color: settingsSelected ? selectedColor : unselectedColor,
                   onTap: onSettingsTap,
+                  selected: settingsSelected,
                 ),
               ],
             ),

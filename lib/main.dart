@@ -496,7 +496,7 @@ class _AppBootstrapState extends State<AppBootstrap> with WidgetsBindingObserver
         }
         if (!session.loggedIn) return const SignInScreen();
         final autoOpen = _autoOpenDesktop;
-        return autoOpen != null ? DesktopDetailsScreen(desktop: autoOpen) : const DesktopListScreen();
+        return autoOpen != null ? MachinePager(desktop: autoOpen) : const DesktopListScreen();
       },
     );
   }
