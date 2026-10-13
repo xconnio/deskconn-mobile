@@ -54,8 +54,10 @@ class DesktopPageHandle {
 
 class MachinePager extends StatefulWidget {
   final Map<String, dynamic> desktop;
+  @visibleForTesting
+  final Widget Function(Map<String, dynamic> desktop, DesktopPageHandle handle)? pageBuilder;
 
-  const MachinePager({super.key, required this.desktop});
+  const MachinePager({super.key, required this.desktop, this.pageBuilder});
 
   @override
   State<MachinePager> createState() => _MachinePagerState();
@@ -164,10 +166,13 @@ class _MachinePagerState extends State<MachinePager> {
                     physics: current.appOpen.value ? const NeverScrollableScrollPhysics() : null,
                     onPageChanged: _onPageChanged,
                     itemCount: _desktops.length,
-                    itemBuilder: (context, index) => DesktopDetailsScreen(
+                    itemBuilder: (context, index) => GestureDetector(
                       key: ValueKey(_desktops[index]['realm']),
-                      desktop: _desktops[index],
-                      handle: _handles[index],
+                      behavior: HitTestBehavior.translucent,
+                      onVerticalDragUpdate: (_) {},
+                      child:
+                          widget.pageBuilder?.call(_desktops[index], _handles[index]) ??
+                          DesktopDetailsScreen(desktop: _desktops[index], handle: _handles[index]),
                     ),
                   ),
                 ),
@@ -615,60 +620,56 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                       )
                     : Container(color: Theme.of(context).scaffoldBackgroundColor),
                 if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
-                GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onVerticalDragUpdate: (_) {},
-                  child: SafeArea(
-                    bottom: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              final tiles = _launcherTiles(
-                                context,
-                                enabled: terminalEnabled,
-                                onWallpaper: wallpaper != null,
-                              );
-                              final ids = _orderedLauncherIds(tiles.keys);
-                              return Align(
-                                alignment: Alignment.bottomCenter,
-                                child: GridView.count(
-                                  shrinkWrap: true,
-                                  padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
-                                  crossAxisCount: 4,
-                                  crossAxisSpacing: 4,
-                                  mainAxisSpacing: 4,
-                                  childAspectRatio: 0.85,
-                                  children: [
-                                    for (final id in ids)
-                                      DragTarget<String>(
-                                        key: ValueKey(id),
-                                        onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
-                                        builder: (context, candidates, _) => LongPressDraggable<String>(
-                                          data: id,
-                                          feedback: Material(
-                                            type: MaterialType.transparency,
-                                            child: SizedBox(width: 80, height: 94, child: tiles[id]),
-                                          ),
-                                          childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
-                                          child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
+                SafeArea(
+                  bottom: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            final tiles = _launcherTiles(
+                              context,
+                              enabled: terminalEnabled,
+                              onWallpaper: wallpaper != null,
+                            );
+                            final ids = _orderedLauncherIds(tiles.keys);
+                            return Align(
+                              alignment: Alignment.bottomCenter,
+                              child: GridView.count(
+                                shrinkWrap: true,
+                                padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 4,
+                                mainAxisSpacing: 4,
+                                childAspectRatio: 0.85,
+                                children: [
+                                  for (final id in ids)
+                                    DragTarget<String>(
+                                      key: ValueKey(id),
+                                      onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
+                                      builder: (context, candidates, _) => LongPressDraggable<String>(
+                                        data: id,
+                                        feedback: Material(
+                                          type: MaterialType.transparency,
+                                          child: SizedBox(width: 80, height: 94, child: tiles[id]),
                                         ),
+                                        childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
+                                        child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
                                       ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                        _ConnectionStatusChip(
-                          status: _connectionStatus,
-                          name: widget.desktop['name']?.toString() ?? '',
-                          onWallpaper: wallpaper != null,
-                        ),
-                      ],
-                    ),
+                      ),
+                      _ConnectionStatusChip(
+                        status: _connectionStatus,
+                        name: widget.desktop['name']?.toString() ?? '',
+                        onWallpaper: wallpaper != null,
+                      ),
+                    ],
                   ),
                 ),
                 for (final entry in _windowManager.windows)
