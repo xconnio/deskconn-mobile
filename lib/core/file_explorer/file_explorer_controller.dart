@@ -8,6 +8,7 @@ import 'package:xconn/xconn.dart';
 import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
+import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/core/wamp/file_stream_service.dart';
 import 'models.dart';
 
@@ -16,8 +17,6 @@ class FileExplorerController {
   final String realm;
   final web_rtc.WebRTCSession? webRtcSession;
   Encryption? _encryption;
-  bool _keyExchanged = false;
-  Future<void>? _keyExchangeFuture;
   FileStreamService? _fileStream;
 
   static final Map<String, Uint8List> _thumbnailCache = {};
@@ -37,28 +36,10 @@ class FileExplorerController {
     return _fileStream ??= FileStreamService(rtc);
   }
 
-  bool get isKeyExchanged => _keyExchanged;
+  bool get isKeyExchanged => _encryption != null;
 
-  Future<void> ensureKeyExchanged() {
-    if (_keyExchanged) return Future.value();
-    return _keyExchangeFuture ??= _doKeyExchange();
-  }
-
-  Future<void> _doKeyExchange() async {
-    _encryption = await Encryption.create();
-    final res = await session
-        .call(DeskconnProcedures.deskconndKeyExchange, args: [_encryption!.clientPublicKey])
-        .timeout(DeskconnConfig.callTimeout);
-
-    if (res.args.isEmpty) {
-      throw Exception('Key exchange failed: empty response');
-    }
-
-    final serverKey = _coerceBytes(res.args[0]);
-    final keyPayload = serverKey.length == 32 ? Uint8List.fromList([...utf8.encode('KEY:'), ...serverKey]) : serverKey;
-
-    await _encryption!.acceptServerKey(keyPayload);
-    _keyExchanged = true;
+  Future<void> ensureKeyExchanged() async {
+    _encryption = await SessionEncryption.deskconnd(session).keys();
   }
 
   Future<FileBrowseResult> browse(String path, {String? cursor, int? limit}) async {
