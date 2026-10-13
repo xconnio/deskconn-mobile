@@ -44,12 +44,10 @@ class DesktopPageHandle {
   VoidCallback? openRecents;
   VoidCallback? openMachines;
   final ValueNotifier<bool> appOpen = ValueNotifier(false);
-  final ValueNotifier<bool> hasWallpaper = ValueNotifier(false);
   final ValueNotifier<DesktopConnectionStatus> status = ValueNotifier(DesktopConnectionStatus.checking);
 
   void dispose() {
     appOpen.dispose();
-    hasWallpaper.dispose();
     status.dispose();
   }
 }
@@ -89,7 +87,6 @@ class _MachinePagerState extends State<MachinePager> {
     _handles = [for (var i = 0; i < _desktops.length; i++) DesktopPageHandle()];
     for (final handle in _handles) {
       handle.appOpen.addListener(_refresh);
-      handle.hasWallpaper.addListener(_refresh);
       handle.status.addListener(_refresh);
     }
     _controller = PageController(initialPage: _page);
@@ -141,7 +138,7 @@ class _MachinePagerState extends State<MachinePager> {
       },
       child: Scaffold(
         bottomNavigationBar: _DesktopNavBar(
-          onWallpaper: !_showSettings && current.hasWallpaper.value,
+          onWallpaper: !_showSettings,
           settingsSelected: _showSettings,
           onMachineTap: () {
             setState(() => _showSettings = false);
@@ -187,7 +184,7 @@ class _MachinePagerState extends State<MachinePager> {
                     child: _ConnectionStatusChip(
                       status: current.status.value,
                       name: _desktops[_page]['name']?.toString() ?? '',
-                      onWallpaper: current.hasWallpaper.value,
+                      onWallpaper: true,
                     ),
                   ),
                 Positioned(
@@ -293,7 +290,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     final handle = widget.handle;
     if (handle == null) return;
     handle.appOpen.value = _activeMobileApp != null;
-    handle.hasWallpaper.value = _wallpaperBytes != null;
     handle.status.value = _connectionStatus;
   }
 
@@ -598,8 +594,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
 
     final wallpaper = _wallpaperBytes;
     final handle = widget.handle;
-    if (handle != null &&
-        (handle.hasWallpaper.value != (wallpaper != null) || handle.status.value != _connectionStatus)) {
+    if (handle != null && handle.status.value != _connectionStatus) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncHandle());
     }
 
@@ -620,7 +615,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
             bottomNavigationBar: widget.handle != null
                 ? null
                 : _DesktopNavBar(
-                    onWallpaper: wallpaper != null,
+                    onWallpaper: true,
                     onMachineTap: _openMachines,
                     onWindowsTap: () => _openRecents(context),
                     onSettingsTap: () =>
@@ -630,12 +625,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
               fit: StackFit.expand,
               children: [
                 wallpaper != null
-                    ? Image.memory(
-                        wallpaper,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(color: Theme.of(context).scaffoldBackgroundColor),
-                      )
-                    : Container(color: Theme.of(context).scaffoldBackgroundColor),
+                    ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
+                    : const _DefaultWallpaper(),
                 if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
                 SafeArea(
                   bottom: false,
@@ -645,11 +636,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                       Expanded(
                         child: Builder(
                           builder: (context) {
-                            final tiles = _launcherTiles(
-                              context,
-                              enabled: terminalEnabled,
-                              onWallpaper: wallpaper != null,
-                            );
+                            final tiles = _launcherTiles(context, enabled: terminalEnabled, onWallpaper: true);
                             final ids = _orderedLauncherIds(tiles.keys);
                             return Align(
                               alignment: Alignment.bottomCenter,
@@ -689,7 +676,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                         child: _ConnectionStatusChip(
                           status: _connectionStatus,
                           name: widget.desktop['name']?.toString() ?? '',
-                          onWallpaper: wallpaper != null,
+                          onWallpaper: true,
                         ),
                       ),
                     ],
@@ -727,12 +714,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         fit: StackFit.expand,
         children: [
           wallpaper != null
-              ? Image.memory(
-                  wallpaper,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(color: Theme.of(context).scaffoldBackgroundColor),
-                )
-              : Container(color: Theme.of(context).scaffoldBackgroundColor),
+              ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
+              : const _DefaultWallpaper(),
           if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
           SafeArea(
             child: Column(
@@ -1396,6 +1379,23 @@ class _ConnectionStatusChip extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DefaultWallpaper extends StatelessWidget {
+  const _DefaultWallpaper();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
         ),
       ),
     );
