@@ -17,7 +17,6 @@ import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart';
 import 'package:deskconn_mobile_app/screens/network_screen.dart';
 import 'package:deskconn_mobile_app/screens/port_forward_screen.dart';
 import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
-import 'package:deskconn_mobile_app/screens/remote_control_screen.dart';
 import 'package:deskconn_mobile_app/screens/resource_monitor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:deskconn_mobile_app/theme/page_transitions.dart';
@@ -299,14 +298,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openFileExplorer(context, category: 'images')),
       ),
-      'remote': _LauncherTile(
-        icon: Icons.settings_remote_outlined,
-        badgeColor: palette.osMint,
-        title: "Remote Ctrl",
-        enabled: enabled,
-        onWallpaper: onWallpaper,
-        onTap: () => launch(() => _openRemoteControl(context)),
-      ),
       'terminal': _LauncherTile(
         icon: Icons.terminal,
         badgeColor: palette.osDebian,
@@ -569,9 +560,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                         Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())),
                     onOpen: (kind, {category}) {
                       switch (kind) {
-                        case DesktopAppKind.remoteControl:
-                          _openRemoteControl(context);
-                          break;
                         case DesktopAppKind.terminal:
                           _openTerminal(context);
                           break;
@@ -730,51 +718,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
       }
       if (e is TimeoutException) return false;
       return false;
-    }
-  }
-
-  Future<void> _openRemoteControl(BuildContext context) async {
-    final realm = _realm;
-    if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
-      return;
-    }
-
-    try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
-      if (authId == null || privateKey == null) {
-        throw Exception("Missing credentials.");
-      }
-
-      if (!context.mounted) return;
-
-      final config = _terminalConfig(realm: realm, authId: authId, privateKey: privateKey, status: _connectionStatus);
-
-      if (isDesktopLayout(context)) {
-        final palette = DeskconnPalette.of(context);
-        _windowManager.open(
-          DesktopAppKind.remoteControl,
-          title: 'Remote Ctrl',
-          icon: Icons.settings_remote_outlined,
-          iconColor: palette.osMint,
-          content: RemoteControlView(config: config, embedded: true),
-          workspaceSize: MediaQuery.sizeOf(context),
-        );
-        return;
-      }
-
-      _openMobileApp(
-        DesktopAppKind.remoteControl,
-        title: 'Remote Ctrl',
-        icon: Icons.settings_remote_outlined,
-        iconColor: DeskconnPalette.of(context).osMint,
-        builder: (_, _) => RemoteControlScreen(config: config),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Remote Control: $e")));
-      }
     }
   }
 
