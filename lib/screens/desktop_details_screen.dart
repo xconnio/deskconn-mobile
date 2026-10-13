@@ -179,7 +179,7 @@ class _MachinePagerState extends State<MachinePager> {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 12,
+                  bottom: 30 + MediaQuery.textScalerOf(context).scale(17) + 10,
                   child: IgnorePointer(
                     child: AnimatedOpacity(
                       opacity: _showIndicator ? 1 : 0,
