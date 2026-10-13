@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -15,6 +14,7 @@ import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart';
+import 'package:deskconn_mobile_app/screens/network_screen.dart';
 import 'package:deskconn_mobile_app/screens/port_forward_screen.dart';
 import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
 import 'package:deskconn_mobile_app/screens/remote_control_screen.dart';
@@ -270,17 +270,9 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     if (!handled) _minimizeMobileApp(app.id);
   }
 
-  Map<String, Widget> _launcherTiles(
-    BuildContext context, {
-    required bool enabled,
-    required bool onWallpaper,
-    VoidCallback? beforeOpen,
-  }) {
+  Map<String, Widget> _launcherTiles(BuildContext context, {required bool enabled, required bool onWallpaper}) {
     final palette = DeskconnPalette.of(context);
-    void launch(VoidCallback open) {
-      beforeOpen?.call();
-      open();
-    }
+    void launch(VoidCallback open) => open();
 
     return {
       'documents': _LauncherTile(
@@ -339,23 +331,14 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openResourceMonitor(context)),
       ),
-      'ports': _LauncherTile(
-        icon: Icons.swap_horiz,
+      'network': _LauncherTile(
+        icon: Icons.lan_outlined,
         badgeColor: palette.osXubuntu,
-        title: "Ports",
+        title: "Network",
         enabled: enabled,
         onWallpaper: onWallpaper,
-        onTap: () => launch(() => _openPortForward(context)),
+        onTap: () => launch(() => _openNetwork(context)),
       ),
-      if (Platform.isAndroid)
-        'vpn': _LauncherTile(
-          icon: Icons.vpn_lock_outlined,
-          badgeColor: palette.osMint,
-          title: "VPN",
-          enabled: enabled,
-          onWallpaper: onWallpaper,
-          onTap: () => launch(() => _openVpn(context)),
-        ),
     };
   }
 
@@ -413,59 +396,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     );
   }
 
-  static const _networkFolderIds = ['ports', 'vpn'];
-
-  void _openFolder(BuildContext context, String title, List<String> ids) {
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: title,
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (dialogContext, _, _) {
-        final tiles = _launcherTiles(
-          context,
-          enabled: _appsEnabled,
-          onWallpaper: true,
-          beforeOpen: () => Navigator.pop(dialogContext),
-        );
-        return BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Center(
-            child: Material(
-              type: MaterialType.transparency,
-              child: Container(
-                width: 300,
-                padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    GridView.count(
-                      shrinkWrap: true,
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.85,
-                      children: [for (final id in ids) tiles[id]!],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (_, animation, _, child) => fadeScaleTransition(animation, child),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final terminalEnabled = _appsEnabled;
@@ -516,25 +446,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                               enabled: terminalEnabled,
                               onWallpaper: wallpaper != null,
                             );
-                            final networkIds = _networkFolderIds.where(tiles.containsKey).toList();
-                            for (final id in networkIds) {
-                              tiles.remove(id);
-                            }
-                            if (networkIds.isNotEmpty) {
-                              final palette = DeskconnPalette.of(context);
-                              tiles['network'] = _FolderTile(
-                                title: 'Network',
-                                previews: [
-                                  for (final id in networkIds)
-                                    switch (id) {
-                                      'vpn' => (Icons.vpn_lock_outlined, palette.osMint),
-                                      _ => (Icons.swap_horiz, palette.osXubuntu),
-                                    },
-                                ],
-                                onWallpaper: wallpaper != null,
-                                onTap: () => _openFolder(context, 'Network', networkIds),
-                              );
-                            }
                             final ids = _orderedLauncherIds(tiles.keys);
                             return Align(
                               alignment: Alignment.bottomCenter,
@@ -675,6 +586,9 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
                           break;
                         case DesktopAppKind.vpn:
                           _openVpn(context);
+                          break;
+                        case DesktopAppKind.network:
+                          _openNetwork(context);
                           break;
                       }
                     },
@@ -988,6 +902,36 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     }
   }
 
+  Future<void> _openNetwork(BuildContext context) async {
+    final realm = _realm;
+    if (realm == null ||
+        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+      return;
+    }
+
+    try {
+      final authId = await DeviceIdentity.lastEmail();
+      final privateKey = await DeviceIdentity.privateKey();
+      if (authId == null || privateKey == null) {
+        throw Exception("Missing credentials.");
+      }
+      if (!context.mounted) return;
+
+      final config = _terminalConfig(realm: realm, authId: authId, privateKey: privateKey, status: _connectionStatus);
+      _openMobileApp(
+        DesktopAppKind.network,
+        title: 'Network',
+        icon: Icons.lan_outlined,
+        iconColor: DeskconnPalette.of(context).osXubuntu,
+        builder: (_, _) => NetworkScreen(config: config),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Network: $e")));
+      }
+    }
+  }
+
   Future<void> _openFileExplorer(BuildContext context, {String? category}) async {
     final realm = _realm;
     if (realm == null ||
@@ -1222,59 +1166,6 @@ class _LauncherTile extends StatelessWidget {
                   : null,
             ),
             child: Icon(icon, size: 26, color: Colors.white),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: textColor, fontWeight: FontWeight.w500, fontSize: 13, shadows: textShadows),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FolderTile extends StatelessWidget {
-  final String title;
-  final List<(IconData, Color)> previews;
-  final VoidCallback onTap;
-  final bool onWallpaper;
-
-  const _FolderTile({required this.title, required this.previews, required this.onTap, this.onWallpaper = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = onWallpaper ? Colors.white : Theme.of(context).colorScheme.onSurface;
-    final textShadows = onWallpaper ? [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6)] : null;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: onWallpaper ? Colors.white.withValues(alpha: 0.25) : textColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Wrap(
-              spacing: 3,
-              runSpacing: 3,
-              children: [
-                for (final (icon, color) in previews.take(4))
-                  Container(
-                    width: 17,
-                    height: 17,
-                    decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(5)),
-                    child: Icon(icon, size: 12, color: Colors.white),
-                  ),
-              ],
-            ),
           ),
           const SizedBox(height: 4),
           Text(
