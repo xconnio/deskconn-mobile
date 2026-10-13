@@ -36,7 +36,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
 
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 
-enum _DesktopConnectionStatus { checking, routed, p2p, offline }
+enum DesktopConnectionStatus { checking, routed, p2p, offline }
 
 const String _prefKeyLauncherOrder = 'launcher_order';
 
@@ -45,10 +45,12 @@ class DesktopPageHandle {
   VoidCallback? openMachines;
   final ValueNotifier<bool> appOpen = ValueNotifier(false);
   final ValueNotifier<bool> hasWallpaper = ValueNotifier(false);
+  final ValueNotifier<DesktopConnectionStatus> status = ValueNotifier(DesktopConnectionStatus.checking);
 
   void dispose() {
     appOpen.dispose();
     hasWallpaper.dispose();
+    status.dispose();
   }
 }
 
@@ -65,6 +67,7 @@ class MachinePager extends StatefulWidget {
 
 class _MachinePagerState extends State<MachinePager> {
   static const _indicatorLinger = Duration(milliseconds: 700);
+  static const _chipLift = 6.0;
 
   late final List<Map<String, dynamic>> _desktops;
   late final List<DesktopPageHandle> _handles;
@@ -88,6 +91,7 @@ class _MachinePagerState extends State<MachinePager> {
     for (final handle in _handles) {
       handle.appOpen.addListener(_refresh);
       handle.hasWallpaper.addListener(_refresh);
+      handle.status.addListener(_refresh);
     }
     _controller = PageController(initialPage: _page);
   }
@@ -176,10 +180,21 @@ class _MachinePagerState extends State<MachinePager> {
                     ),
                   ),
                 ),
+                if (!current.appOpen.value)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: _chipLift,
+                    child: _ConnectionStatusChip(
+                      status: current.status.value,
+                      name: _desktops[_page]['name']?.toString() ?? '',
+                      onWallpaper: current.hasWallpaper.value,
+                    ),
+                  ),
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 30 + MediaQuery.textScalerOf(context).scale(17) + 10,
+                  bottom: 2,
                   child: IgnorePointer(
                     child: AnimatedOpacity(
                       opacity: _showIndicator ? 1 : 0,
@@ -248,7 +263,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   bool get wantKeepAlive => widget.handle != null;
 
   bool _openingTerminal = false;
-  _DesktopConnectionStatus _connectionStatus = _DesktopConnectionStatus.checking;
+  DesktopConnectionStatus _connectionStatus = DesktopConnectionStatus.checking;
   Uint8List? _wallpaperBytes;
   final DesktopWindowManager _windowManager = DesktopWindowManager();
   bool _dockAutoHide = false;
@@ -280,6 +295,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     if (handle == null) return;
     handle.appOpen.value = _activeMobileApp != null;
     handle.hasWallpaper.value = _wallpaperBytes != null;
+    handle.status.value = _connectionStatus;
   }
 
   Future<void> _loadDockAutoHide() async {
@@ -326,12 +342,12 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   void _handleConnectivityChanged() {
     if (!mounted) return;
     if (!ConnectivityService().hasConnection) {
-      if (_connectionStatus != _DesktopConnectionStatus.offline) {
-        setState(() => _connectionStatus = _DesktopConnectionStatus.offline);
+      if (_connectionStatus != DesktopConnectionStatus.offline) {
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
       }
       return;
     }
-    if (_connectionStatus == _DesktopConnectionStatus.offline) {
+    if (_connectionStatus == DesktopConnectionStatus.offline) {
       unawaited(_probeDesktopConnection());
     }
   }
@@ -523,7 +539,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   }
 
   bool get _appsEnabled =>
-      (_connectionStatus == _DesktopConnectionStatus.routed || _connectionStatus == _DesktopConnectionStatus.p2p) &&
+      (_connectionStatus == DesktopConnectionStatus.routed || _connectionStatus == DesktopConnectionStatus.p2p) &&
       !_openingTerminal;
 
   void _openRecents(BuildContext context) {
@@ -582,7 +598,9 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     final terminalEnabled = _appsEnabled;
 
     final wallpaper = _wallpaperBytes;
-    if (widget.handle != null && widget.handle!.hasWallpaper.value != (wallpaper != null)) {
+    final handle = widget.handle;
+    if (handle != null &&
+        (handle.hasWallpaper.value != (wallpaper != null) || handle.status.value != _connectionStatus)) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncHandle());
     }
 
@@ -664,10 +682,19 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                           },
                         ),
                       ),
-                      _ConnectionStatusChip(
-                        status: _connectionStatus,
-                        name: widget.desktop['name']?.toString() ?? '',
-                        onWallpaper: wallpaper != null,
+                      Visibility(
+                        visible: widget.handle == null,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: widget.handle == null ? 0 : _MachinePagerState._chipLift),
+                          child: _ConnectionStatusChip(
+                            status: _connectionStatus,
+                            name: widget.desktop['name']?.toString() ?? '',
+                            onWallpaper: wallpaper != null,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -787,19 +814,19 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   }
 
   String get _connectionStatusLabel => switch (_connectionStatus) {
-    _DesktopConnectionStatus.checking => 'Connecting',
-    _DesktopConnectionStatus.p2p => 'P2P',
-    _DesktopConnectionStatus.routed => 'Routed',
-    _DesktopConnectionStatus.offline => 'Offline',
+    DesktopConnectionStatus.checking => 'Connecting',
+    DesktopConnectionStatus.p2p => 'P2P',
+    DesktopConnectionStatus.routed => 'Routed',
+    DesktopConnectionStatus.offline => 'Offline',
   };
 
   Color _connectionStatusColor(BuildContext context) {
     final palette = DeskconnPalette.of(context);
     return switch (_connectionStatus) {
-      _DesktopConnectionStatus.checking => palette.subtle,
-      _DesktopConnectionStatus.p2p => palette.statusOnline,
-      _DesktopConnectionStatus.routed => palette.statusRouted,
-      _DesktopConnectionStatus.offline => palette.statusOffline,
+      DesktopConnectionStatus.checking => palette.subtle,
+      DesktopConnectionStatus.p2p => palette.statusOnline,
+      DesktopConnectionStatus.routed => palette.statusRouted,
+      DesktopConnectionStatus.offline => palette.statusOffline,
     };
   }
 
@@ -810,9 +837,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     if (cached != null && cached.isAgentOnline) {
       cached.onDisconnected = _handleConnectionDisconnected;
       if (mounted) {
-        setState(
-          () => _connectionStatus = cached.isP2P ? _DesktopConnectionStatus.p2p : _DesktopConnectionStatus.routed,
-        );
+        setState(() => _connectionStatus = cached.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed);
       }
       unawaited(_refreshWallpaper(cached.session));
       return;
@@ -820,13 +845,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
 
     if (!ConnectivityService().hasConnection) {
       if (mounted) {
-        setState(() => _connectionStatus = _DesktopConnectionStatus.offline);
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
       }
       return;
     }
 
     if (mounted) {
-      setState(() => _connectionStatus = _DesktopConnectionStatus.checking);
+      setState(() => _connectionStatus = DesktopConnectionStatus.checking);
     }
 
     final authId = await DeviceIdentity.lastEmail();
@@ -836,14 +861,14 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
 
     if (authId == null || privateKey == null || realm == null) {
       if (mounted) {
-        setState(() => _connectionStatus = _DesktopConnectionStatus.offline);
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
       }
       return;
     }
 
     final status = await _attemptConnection(realm, authId, privateKey, webRtcEnabled);
     if (mounted) {
-      setState(() => _connectionStatus = status ?? _DesktopConnectionStatus.offline);
+      setState(() => _connectionStatus = status ?? DesktopConnectionStatus.offline);
     }
     if (status != null) {
       final session = DesktopConnectionManager().get(realm)?.session;
@@ -864,7 +889,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     }
   }
 
-  Future<_DesktopConnectionStatus?> _attemptConnection(
+  Future<DesktopConnectionStatus?> _attemptConnection(
     String realm,
     String authId,
     String privateKey,
@@ -880,13 +905,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
       connection.onDisconnected = _handleConnectionDisconnected;
 
       if (connection.isAgentOnline) {
-        return connection.isP2P ? _DesktopConnectionStatus.p2p : _DesktopConnectionStatus.routed;
+        return connection.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed;
       }
 
       final desktopOnline = await _isDesktopAgentOnline(connection.session);
       if (desktopOnline) {
         connection.isAgentOnline = true;
-        return connection.isP2P ? _DesktopConnectionStatus.p2p : _DesktopConnectionStatus.routed;
+        return connection.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed;
       }
 
       connection.onDisconnected = null;
@@ -900,7 +925,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
 
   void _handleConnectionDisconnected() {
     if (!mounted) return;
-    setState(() => _connectionStatus = _DesktopConnectionStatus.checking);
+    setState(() => _connectionStatus = DesktopConnectionStatus.checking);
     unawaited(_probeDesktopConnection());
   }
 
@@ -920,7 +945,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   Future<void> _openResourceMonitor(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -967,7 +992,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   Future<void> _openPortForward(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -1014,7 +1039,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   Future<void> _openVpn(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -1044,7 +1069,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   Future<void> _openNetwork(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -1074,7 +1099,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   Future<void> _openFileExplorer(BuildContext context, {String? category}) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -1140,7 +1165,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     final realm = _realm;
     if (_openingTerminal ||
         realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -1149,7 +1174,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
 
     try {
       final desktopName = widget.desktop['name']?.toString() ?? 'Desktop';
-      final webRtcEnabled = _connectionStatus == _DesktopConnectionStatus.p2p;
+      final webRtcEnabled = _connectionStatus == DesktopConnectionStatus.p2p;
 
       if (!context.mounted) return;
 
@@ -1216,7 +1241,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     required String realm,
     required String authId,
     required String privateKey,
-    required _DesktopConnectionStatus status,
+    required DesktopConnectionStatus status,
   }) {
     return DesktopSessionLaunchConfig(
       sessionKey: 'terminal:$realm',
@@ -1224,7 +1249,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
       realm: realm,
       authId: authId,
       privateKey: privateKey,
-      webRtcEnabled: status == _DesktopConnectionStatus.p2p,
+      webRtcEnabled: status == DesktopConnectionStatus.p2p,
     );
   }
 
@@ -1319,7 +1344,7 @@ class _LauncherTile extends StatelessWidget {
 }
 
 class _ConnectionStatusChip extends StatelessWidget {
-  final _DesktopConnectionStatus status;
+  final DesktopConnectionStatus status;
   final String name;
   final bool onWallpaper;
 
@@ -1330,10 +1355,10 @@ class _ConnectionStatusChip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final palette = DeskconnPalette.of(context);
     final (dotColor, label) = switch (status) {
-      _DesktopConnectionStatus.checking => (palette.subtle, 'Connecting'),
-      _DesktopConnectionStatus.p2p => (palette.statusOnline, 'P2P'),
-      _DesktopConnectionStatus.routed => (palette.statusRouted, 'Routed'),
-      _DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
+      DesktopConnectionStatus.checking => (palette.subtle, 'Connecting'),
+      DesktopConnectionStatus.p2p => (palette.statusOnline, 'P2P'),
+      DesktopConnectionStatus.routed => (palette.statusRouted, 'Routed'),
+      DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
     };
     final textColor = onWallpaper ? Colors.white : colorScheme.onSurface;
     final statusStyle = TextStyle(

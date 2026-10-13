@@ -2,6 +2,7 @@ import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/providers/theme_provider.dart';
 import 'package:deskconn_mobile_app/screens/desktop_details_screen.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
+import 'package:deskconn_mobile_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -27,6 +28,7 @@ class _Harness {
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ],
         child: MaterialApp(
+          theme: DeskconnTheme.light(),
           home: MachinePager(
             desktop: _desktops.firstWhere((d) => d['realm'] == realm),
             pageBuilder: (desktop, handle) {
@@ -35,7 +37,7 @@ class _Harness {
               handle.openRecents = () => recentsOpened.add(realm);
               return ColoredBox(
                 color: Colors.blueGrey,
-                child: Center(child: Text(desktop['name'] as String)),
+                child: Center(child: Text('page ${desktop['name']}')),
               );
             },
           ),
@@ -46,7 +48,9 @@ class _Harness {
   }
 }
 
-Finder _visible(String text) => find.text(text).hitTestable();
+Finder _visible(String name) => find.text('page $name').hitTestable();
+
+Finder _chip(String name) => find.textContaining(RegExp('^$name '), findRichText: true);
 
 double _indicatorOpacity(WidgetTester tester) =>
     tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity).first).opacity;
@@ -163,5 +167,35 @@ void main() {
     await tester.pump();
 
     expect(harness.recentsOpened, ['r2']);
+  });
+
+  testWidgets('the status chip stays in place and shows the new machine after a switch', (tester) async {
+    await _Harness().pump(tester);
+    expect(_chip('One'), findsOneWidget);
+    final before = tester.getRect(_chip('One'));
+
+    final gesture = await tester.startGesture(tester.getCenter(find.byType(PageView)));
+    await gesture.moveBy(const Offset(-40, 0));
+    await gesture.moveBy(const Offset(-150, 0));
+    await tester.pump();
+    expect(tester.getRect(_chip('One')), before);
+
+    await gesture.moveBy(const Offset(-300, 0));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(_chip('Two'), findsOneWidget);
+    expect(_chip('One'), findsNothing);
+    expect(tester.getRect(_chip('Two')).center.dy, before.center.dy);
+  });
+
+  testWidgets('the status chip hides while an app is open', (tester) async {
+    final harness = _Harness();
+    await harness.pump(tester);
+
+    harness.handles['r1']!.appOpen.value = true;
+    await tester.pump();
+
+    expect(_chip('One'), findsNothing);
   });
 }
