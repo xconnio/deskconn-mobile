@@ -12,6 +12,7 @@ import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/vpn/vpn_tunnel.dart';
 import 'package:deskconn_mobile_app/core/wamp/file_stream_server.dart';
 import 'package:deskconn_mobile_app/core/wamp/file_stream_service.dart';
+import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/core/wamp/wamp_client.dart';
 import 'package:deskconn_mobile_app/core/wamp/webrtc_close_peer.dart';
 
@@ -86,6 +87,15 @@ class DesktopConnectionManager {
   static const _heartbeatInterval = Duration(seconds: 8);
   static const _heartbeatTimeout = Duration(seconds: 5);
   static const heartbeatMaxMisses = 3;
+
+  static Future<void> checkAgentOnline(Session session, Duration timeout) async {
+    try {
+      await session.call(DeskconnProcedures.deskconndPing).timeout(timeout);
+    } on ApplicationError catch (e) {
+      if (!e.toString().contains('no_such_procedure')) return;
+      await SessionEncryption.deskconnd(session).keys().timeout(timeout);
+    }
+  }
 
   @visibleForTesting
   static bool shouldDropAfterHeartbeatFailure({required bool strict, required bool connected, required int misses}) {
@@ -349,6 +359,8 @@ class DesktopConnectionManager {
         if (_connections[key] != connection) continue;
         try {
           await connection.session.call(DeskconnProcedures.deskconndPing).timeout(_heartbeatTimeout);
+          _heartbeatMisses[connection] = null;
+        } on ApplicationError {
           _heartbeatMisses[connection] = null;
         } catch (e) {
           if (_connections[key] != connection) continue;

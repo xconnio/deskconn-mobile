@@ -87,7 +87,7 @@ class _MachineGridState extends State<MachineGrid> {
     if (connection == null) return;
 
     try {
-      await connection.session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 4));
+      await DesktopConnectionManager.checkAgentOnline(connection.session, const Duration(seconds: 4));
     } catch (_) {
       await DesktopConnectionManager().release(realm);
       if (mounted) setState(() {});
@@ -106,7 +106,7 @@ class _MachineGridState extends State<MachineGrid> {
         privateKey: privateKey,
         webRtcEnabled: webRtcEnabled,
       );
-      await connection.session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 5));
+      await DesktopConnectionManager.checkAgentOnline(connection.session, const Duration(seconds: 5));
       connection.isAgentOnline = true;
       await LastUsedRealmStore.set(realm);
       return true;

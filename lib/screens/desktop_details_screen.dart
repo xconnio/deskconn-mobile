@@ -808,7 +808,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
   Future<bool> _isDesktopAgentOnline(Session session) async {
     try {
-      await session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 3));
+      await DesktopConnectionManager.checkAgentOnline(session, const Duration(seconds: 3));
       return true;
     } catch (e) {
       if (e.toString().toLowerCase().contains('wamp.error.no_such_procedure')) {
