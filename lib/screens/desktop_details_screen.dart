@@ -65,6 +65,7 @@ class MachinePager extends StatefulWidget {
 
 class _MachinePagerState extends State<MachinePager> {
   static const _indicatorLinger = Duration(milliseconds: 700);
+  static const indicatorGap = 14.0;
 
   late final List<Map<String, dynamic>> _desktops;
   late final List<DesktopPageHandle> _handles;
@@ -190,7 +191,7 @@ class _MachinePagerState extends State<MachinePager> {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 30 + MediaQuery.textScalerOf(context).scale(17) + 10,
+                  bottom: 25 + MediaQuery.textScalerOf(context).scale(15),
                   child: IgnorePointer(
                     child: AnimatedOpacity(
                       opacity: _showIndicator ? 1 : 0,
@@ -668,6 +669,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                           },
                         ),
                       ),
+                      if (widget.handle != null) const SizedBox(height: _MachinePagerState.indicatorGap),
                       Visibility(
                         visible: widget.handle == null,
                         maintainSize: true,

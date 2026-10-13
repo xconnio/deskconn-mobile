@@ -203,8 +203,9 @@ void main() {
     await _Harness().pump(tester);
 
     final dots = tester.getRect(find.byType(AnimatedOpacity).first);
-    final chip = tester.getRect(_chip('One'));
+    final chipTop = tester.getRect(_chip('One')).top - 6;
 
-    expect(dots.bottom, lessThanOrEqualTo(chip.top));
+    expect(dots.bottom, lessThanOrEqualTo(chipTop));
+    expect(dots.top, greaterThanOrEqualTo(chipTop - 14));
   });
 }
