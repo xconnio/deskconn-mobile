@@ -266,7 +266,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         });
         return;
       }
-      final sessionAlive = (_controller?.session.isConnected() ?? false) && e is! TimeoutException;
+      final sessionAlive = _controller?.session.isConnected() ?? false;
       if (!sessionAlive) {
         _log('session lost during browse path=$path error=$e');
         await _reconnect();
