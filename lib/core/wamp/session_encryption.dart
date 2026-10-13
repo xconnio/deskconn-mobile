@@ -23,8 +23,13 @@ class SessionEncryption {
 
   static final Expando<SessionEncryption> _deskconnd = Expando();
 
+  static final Expando<SessionEncryption> _remoteControl = Expando();
+
   static SessionEncryption deskconnd(Session session) =>
       _deskconnd[session] ??= SessionEncryption._(session, DeskconnProcedures.deskconndKeyExchange);
+
+  static SessionEncryption remoteControl(Session session) =>
+      _remoteControl[session] ??= SessionEncryption._(session, DeskconnProcedures.deskconndRemoteControlKeyExchange);
 
   final Session session;
   final String keyExchangeProcedure;

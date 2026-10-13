@@ -5,6 +5,7 @@ import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
+import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart' show saveToDevice;
 import 'package:flutter/material.dart';
 import 'package:xconn/xconn.dart';
@@ -243,10 +244,10 @@ class _RemoteControlViewState extends State<RemoteControlView> {
     final session = await _ensureSession();
     if (session == null) return;
     try {
-      final result = await session.call(_procBrightnessGet).timeout(DeskconnConfig.callTimeout);
-      if (mounted && result.args.isNotEmpty) {
+      final brightness = await SessionEncryption.remoteControl(session).call(_procBrightnessGet) as num;
+      if (mounted) {
         setState(() {
-          _brightness = (result.args[0] as num).toDouble().clamp(1, 100);
+          _brightness = brightness.toDouble().clamp(1, 100);
           _brightnessLoaded = true;
           _brightnessAvailable = true;
         });
@@ -264,9 +265,8 @@ class _RemoteControlViewState extends State<RemoteControlView> {
     final session = await _ensureSession();
     if (session == null) return;
     try {
-      final result = await session.call(_procMprisPlayers).timeout(DeskconnConfig.callTimeout);
-      if (mounted && result.args.isNotEmpty) {
-        final map = result.args[0] as Map;
+      final map = await SessionEncryption.remoteControl(session).call(_procMprisPlayers) as Map? ?? const {};
+      if (mounted) {
         setState(() {
           _players = map.entries.map((entry) {
             final busName = entry.key.toString();
@@ -284,9 +284,9 @@ class _RemoteControlViewState extends State<RemoteControlView> {
     final session = await _ensureSession();
     if (session == null) return;
     try {
-      final result = await session.call(_procAudioIsMuted).timeout(DeskconnConfig.callTimeout);
-      if (mounted && result.args.isNotEmpty) {
-        setState(() => _isMuted = result.args[0] as bool);
+      final muted = await SessionEncryption.remoteControl(session).call(_procAudioIsMuted) as bool;
+      if (mounted) {
+        setState(() => _isMuted = muted);
       }
     } catch (_) {
       await _releaseStaleSession();
@@ -295,9 +295,9 @@ class _RemoteControlViewState extends State<RemoteControlView> {
 
   Future<void> _toggleMute() async {
     await _run((session) async {
-      final result = await session.call(_procAudioToggleMute).timeout(DeskconnConfig.callTimeout);
-      if (mounted && result.args.isNotEmpty) {
-        setState(() => _isMuted = result.args[0] as bool);
+      final muted = await SessionEncryption.remoteControl(session).call(_procAudioToggleMute) as bool;
+      if (mounted) {
+        setState(() => _isMuted = muted);
       }
     });
   }
@@ -306,14 +306,14 @@ class _RemoteControlViewState extends State<RemoteControlView> {
     if (_locking) return;
     setState(() => _locking = true);
     try {
-      await _run((session) => session.call(_procLock).timeout(DeskconnConfig.callTimeout));
+      await _run((session) => SessionEncryption.remoteControl(session).call(_procLock));
     } finally {
       if (mounted) setState(() => _locking = false);
     }
   }
 
   Future<void> _setBrightness(int percent) async {
-    await _run((session) => session.call(_procBrightnessSet, args: [percent]).timeout(DeskconnConfig.callTimeout));
+    await _run((session) => SessionEncryption.remoteControl(session).call(_procBrightnessSet, arg: percent));
   }
 
   Future<void> _takeScreenshot() async {
@@ -325,8 +325,8 @@ class _RemoteControlViewState extends State<RemoteControlView> {
     }
     setState(() => _capturingScreenshot = true);
     try {
-      final result = await session.call(_procScreenshot).timeout(DeskconnConfig.callTimeout);
-      final bytes = _coerceBytes(result.args[0]);
+      final screenshot = await SessionEncryption.remoteControl(session).call(_procScreenshot) as Map;
+      final bytes = _coerceBytes(screenshot['data']);
       if (mounted) {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => _ScreenshotPreviewScreen(bytes: bytes)));
       }
@@ -360,7 +360,7 @@ class _RemoteControlViewState extends State<RemoteControlView> {
 
     setState(() => _mprisBusy = true);
     try {
-      await session.call(proc, args: playerName == null ? null : [playerName]).timeout(DeskconnConfig.callTimeout);
+      await SessionEncryption.remoteControl(session).call(proc, arg: playerName);
     } catch (_) {}
     _refreshPlayersAfterMprisAction();
   }
