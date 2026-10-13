@@ -11,13 +11,25 @@ class VpnScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vpn = controller ?? VpnController.shared;
     return Scaffold(
       appBar: AppBar(title: const Text('VPN')),
-      body: ListenableBuilder(
-        listenable: vpn,
-        builder: (context, _) => _VpnBody(vpn: vpn, config: config),
-      ),
+      body: VpnView(config: config, controller: controller),
+    );
+  }
+}
+
+class VpnView extends StatelessWidget {
+  const VpnView({super.key, required this.config, this.controller});
+
+  final DesktopSessionLaunchConfig config;
+  final VpnController? controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final vpn = controller ?? VpnController.shared;
+    return ListenableBuilder(
+      listenable: vpn,
+      builder: (context, _) => _VpnBody(vpn: vpn, config: config),
     );
   }
 }
