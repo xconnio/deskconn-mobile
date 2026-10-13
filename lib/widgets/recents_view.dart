@@ -27,8 +27,13 @@ class RecentsView extends StatefulWidget {
 }
 
 class _RecentsViewState extends State<RecentsView> {
+  static const _viewportFraction = 0.72;
+  static const _tapAfterScrollWindow = Duration(milliseconds: 400);
+
+  DateTime? _lastScrollActivity;
+
   late final PageController _controller = PageController(
-    viewportFraction: 0.72,
+    viewportFraction: _viewportFraction,
     initialPage: widget.apps.isEmpty ? 0 : widget.apps.length - 1,
   );
 
@@ -43,6 +48,18 @@ class _RecentsViewState extends State<RecentsView> {
       return (_controller.initialPage - index).toDouble();
     }
     return (_controller.page ?? 0) - index;
+  }
+
+  void _handlePageTap(double dx, double width) {
+    final last = _lastScrollActivity;
+    final scrolling = last != null && DateTime.now().difference(last) < _tapAfterScrollWindow;
+    if (!scrolling || !_controller.hasClients || widget.apps.isEmpty) {
+      Navigator.maybePop(context);
+      return;
+    }
+    final page = _controller.page ?? _controller.initialPage.toDouble();
+    final index = (page + (dx - width / 2) / (width * _viewportFraction)).round().clamp(0, widget.apps.length - 1);
+    widget.onOpen(widget.apps[index].id);
   }
 
   @override
@@ -64,29 +81,41 @@ class _RecentsViewState extends State<RecentsView> {
               : Column(
                   children: [
                     Expanded(
-                      child: PageView.builder(
-                        controller: _controller,
-                        itemCount: apps.length,
-                        itemBuilder: (context, index) {
-                          final app = apps[index];
-                          return AnimatedBuilder(
-                            animation: _controller,
-                            builder: (context, child) {
-                              final distance = _pageOffset(index).abs().clamp(0.0, 1.0);
-                              return Transform.scale(scale: 1 - distance * 0.08, child: child);
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) => _handlePageTap(details.localPosition.dx, constraints.maxWidth),
+                          child: NotificationListener<ScrollNotification>(
+                            onNotification: (_) {
+                              _lastScrollActivity = DateTime.now();
+                              return false;
                             },
-                            child: Dismissible(
-                              key: ValueKey(app.id),
-                              direction: DismissDirection.up,
-                              onDismissed: (_) => widget.onClose(app.id),
-                              child: _RecentCard(
-                                app: app,
-                                aspectRatio: screen.width / screen.height,
-                                onTap: () => widget.onOpen(app.id),
-                              ),
+                            child: PageView.builder(
+                              controller: _controller,
+                              itemCount: apps.length,
+                              itemBuilder: (context, index) {
+                                final app = apps[index];
+                                return AnimatedBuilder(
+                                  animation: _controller,
+                                  builder: (context, child) {
+                                    final distance = _pageOffset(index).abs().clamp(0.0, 1.0);
+                                    return Transform.scale(scale: 1 - distance * 0.08, child: child);
+                                  },
+                                  child: Dismissible(
+                                    key: ValueKey(app.id),
+                                    direction: DismissDirection.up,
+                                    onDismissed: (_) => widget.onClose(app.id),
+                                    child: _RecentCard(
+                                      app: app,
+                                      aspectRatio: screen.width / screen.height,
+                                      onTap: () => widget.onOpen(app.id),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                     ),
                     Padding(
