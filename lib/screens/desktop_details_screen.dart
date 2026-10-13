@@ -9,6 +9,7 @@ import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
+import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
@@ -35,22 +36,231 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
 
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 
-enum _DesktopConnectionStatus { checking, routed, p2p, offline }
+enum DesktopConnectionStatus { checking, routed, p2p, offline }
 
 const String _prefKeyLauncherOrder = 'launcher_order';
 
+class DesktopPageHandle {
+  VoidCallback? openRecents;
+  VoidCallback? openMachines;
+  final ValueNotifier<bool> appOpen = ValueNotifier(false);
+  final ValueNotifier<DesktopConnectionStatus> status = ValueNotifier(DesktopConnectionStatus.checking);
+
+  void dispose() {
+    appOpen.dispose();
+    status.dispose();
+  }
+}
+
+class MachinePager extends StatefulWidget {
+  final Map<String, dynamic> desktop;
+  @visibleForTesting
+  final Widget Function(Map<String, dynamic> desktop, DesktopPageHandle handle)? pageBuilder;
+
+  const MachinePager({super.key, required this.desktop, this.pageBuilder});
+
+  @override
+  State<MachinePager> createState() => _MachinePagerState();
+}
+
+class _MachinePagerState extends State<MachinePager> {
+  static const _indicatorLinger = Duration(milliseconds: 700);
+  static const indicatorGap = 14.0;
+
+  late final List<Map<String, dynamic>> _desktops;
+  late final List<DesktopPageHandle> _handles;
+  late final PageController _controller;
+  late int _page;
+  bool _showSettings = false;
+  bool _showIndicator = false;
+  Timer? _indicatorTimer;
+
+  DesktopPageHandle get _current => _handles[_page];
+
+  @override
+  void initState() {
+    super.initState();
+    final all = context.read<SessionProvider>().desktops;
+    final realm = widget.desktop['realm']?.toString();
+    final index = all.indexWhere((d) => d['realm']?.toString() == realm);
+    _desktops = index < 0 ? [widget.desktop] : List.of(all);
+    _page = index < 0 ? 0 : index;
+    _handles = [for (var i = 0; i < _desktops.length; i++) DesktopPageHandle()];
+    for (final handle in _handles) {
+      handle.appOpen.addListener(_refresh);
+      handle.status.addListener(_refresh);
+    }
+    _controller = PageController(initialPage: _page);
+  }
+
+  @override
+  void dispose() {
+    _indicatorTimer?.cancel();
+    for (final handle in _handles) {
+      handle.dispose();
+    }
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  void _onPageChanged(int page) {
+    setState(() => _page = page);
+    final realm = _desktops[page]['realm']?.toString();
+    if (realm != null) unawaited(LastUsedRealmStore.set(realm));
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.depth != 0 || _desktops.length < 2) return false;
+    if (notification is ScrollStartNotification || notification is ScrollUpdateNotification) {
+      _indicatorTimer?.cancel();
+      if (!_showIndicator) setState(() => _showIndicator = true);
+    } else if (notification is ScrollEndNotification) {
+      _indicatorTimer?.cancel();
+      _indicatorTimer = Timer(_indicatorLinger, () {
+        if (mounted) setState(() => _showIndicator = false);
+      });
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isDesktopLayout(context)) return DesktopDetailsScreen(desktop: _desktops[_page]);
+
+    final current = _current;
+    return PopScope(
+      canPop: !_showSettings,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _showSettings = false);
+      },
+      child: Scaffold(
+        bottomNavigationBar: _DesktopNavBar(
+          onWallpaper: !_showSettings,
+          settingsSelected: _showSettings,
+          onMachineTap: () {
+            setState(() => _showSettings = false);
+            current.openMachines?.call();
+          },
+          onWindowsTap: () {
+            if (_showSettings) {
+              setState(() => _showSettings = false);
+              return;
+            }
+            current.openRecents?.call();
+          },
+          onSettingsTap: () => setState(() => _showSettings = true),
+        ),
+        body: IndexedStack(
+          index: _showSettings ? 1 : 0,
+          children: [
+            Stack(
+              fit: StackFit.expand,
+              children: [
+                NotificationListener<ScrollNotification>(
+                  onNotification: _onScroll,
+                  child: PageView.builder(
+                    controller: _controller,
+                    physics: current.appOpen.value ? const NeverScrollableScrollPhysics() : null,
+                    onPageChanged: _onPageChanged,
+                    itemCount: _desktops.length,
+                    itemBuilder: (context, index) => GestureDetector(
+                      key: ValueKey(_desktops[index]['realm']),
+                      behavior: HitTestBehavior.translucent,
+                      onVerticalDragUpdate: (_) {},
+                      child:
+                          widget.pageBuilder?.call(_desktops[index], _handles[index]) ??
+                          DesktopDetailsScreen(desktop: _desktops[index], handle: _handles[index]),
+                    ),
+                  ),
+                ),
+                if (!current.appOpen.value)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _ConnectionStatusChip(
+                      status: current.status.value,
+                      name: _desktops[_page]['name']?.toString() ?? '',
+                      onWallpaper: true,
+                    ),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 25 + MediaQuery.textScalerOf(context).scale(15),
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _showIndicator ? 1 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: _PageIndicator(count: _desktops.length, controller: _controller),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SettingsScreen(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PageIndicator extends StatelessWidget {
+  final int count;
+  final PageController controller;
+
+  const _PageIndicator({required this.count, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final page = controller.hasClients && controller.position.haveDimensions
+            ? controller.page ?? controller.initialPage.toDouble()
+            : controller.initialPage.toDouble();
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < count; i++)
+              Container(
+                width: 7,
+                height: 7,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.35 + 0.65 * (1 - (page - i).abs().clamp(0.0, 1.0))),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 3)],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class DesktopDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> desktop;
+  final DesktopPageHandle? handle;
 
-  const DesktopDetailsScreen({super.key, required this.desktop});
+  const DesktopDetailsScreen({super.key, required this.desktop, this.handle});
 
   @override
   State<DesktopDetailsScreen> createState() => _DesktopDetailsScreenState();
 }
 
-class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
+class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => widget.handle != null;
+
   bool _openingTerminal = false;
-  _DesktopConnectionStatus _connectionStatus = _DesktopConnectionStatus.checking;
+  DesktopConnectionStatus _connectionStatus = DesktopConnectionStatus.checking;
   Uint8List? _wallpaperBytes;
   final DesktopWindowManager _windowManager = DesktopWindowManager();
   bool _dockAutoHide = false;
@@ -69,6 +279,19 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     unawaited(_loadDockAutoHide());
     unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
+    final handle = widget.handle;
+    if (handle != null) {
+      handle.openRecents = () => _openRecents(context);
+      handle.openMachines = _openMachines;
+      _windowManager.addListener(_syncHandle);
+    }
+  }
+
+  void _syncHandle() {
+    final handle = widget.handle;
+    if (handle == null) return;
+    handle.appOpen.value = _activeMobileApp != null;
+    handle.status.value = _connectionStatus;
   }
 
   Future<void> _loadDockAutoHide() async {
@@ -107,29 +330,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     super.dispose();
   }
 
-  void _handleMachineSwipe(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() < 300) return;
-    final desktops = context.read<SessionProvider>().desktops;
-    final index = desktops.indexWhere((d) => d['realm']?.toString() == _realm);
-    if (index < 0 || desktops.length < 2) return;
-    final forward = velocity < 0;
-    final next = desktops[(index + (forward ? 1 : -1) + desktops.length) % desktops.length];
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder<void>(
-        pageBuilder: (_, _, _) => DesktopDetailsScreen(desktop: next),
-        transitionsBuilder: (_, animation, _, child) => SlideTransition(
-          position: Tween(
-            begin: Offset(forward ? 1 : -1, 0),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-          child: child,
-        ),
-      ),
-      (_) => false,
-    );
-  }
-
   Future<void> _openMachines() async {
     await switchMachine(context, currentRealm: _realm);
     if (mounted) unawaited(_probeDesktopConnection());
@@ -138,12 +338,12 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   void _handleConnectivityChanged() {
     if (!mounted) return;
     if (!ConnectivityService().hasConnection) {
-      if (_connectionStatus != _DesktopConnectionStatus.offline) {
-        setState(() => _connectionStatus = _DesktopConnectionStatus.offline);
+      if (_connectionStatus != DesktopConnectionStatus.offline) {
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
       }
       return;
     }
-    if (_connectionStatus == _DesktopConnectionStatus.offline) {
+    if (_connectionStatus == DesktopConnectionStatus.offline) {
       unawaited(_probeDesktopConnection());
     }
   }
@@ -335,7 +535,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   }
 
   bool get _appsEnabled =>
-      (_connectionStatus == _DesktopConnectionStatus.routed || _connectionStatus == _DesktopConnectionStatus.p2p) &&
+      (_connectionStatus == DesktopConnectionStatus.routed || _connectionStatus == DesktopConnectionStatus.p2p) &&
       !_openingTerminal;
 
   void _openRecents(BuildContext context) {
@@ -390,9 +590,14 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final terminalEnabled = _appsEnabled;
 
     final wallpaper = _wallpaperBytes;
+    final handle = widget.handle;
+    if (handle != null && handle.status.value != _connectionStatus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncHandle());
+    }
 
     if (isDesktopLayout(context)) {
       return _buildDesktopWorkspace(context, wallpaper: wallpaper, terminalEnabled: terminalEnabled);
@@ -408,77 +613,75 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
             if (!didPop) unawaited(_handleMobileBack());
           },
           child: Scaffold(
-            bottomNavigationBar: _DesktopNavBar(
-              onWallpaper: wallpaper != null,
-              onMachineTap: _openMachines,
-              onWindowsTap: () => _openRecents(context),
-              onSettingsTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            ),
+            bottomNavigationBar: widget.handle != null
+                ? null
+                : _DesktopNavBar(
+                    onWallpaper: true,
+                    onMachineTap: _openMachines,
+                    onWindowsTap: () => _openRecents(context),
+                    onSettingsTap: () =>
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                  ),
             body: Stack(
               fit: StackFit.expand,
               children: [
                 wallpaper != null
-                    ? Image.memory(
-                        wallpaper,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(color: Theme.of(context).scaffoldBackgroundColor),
-                      )
-                    : Container(color: Theme.of(context).scaffoldBackgroundColor),
+                    ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
+                    : const _DefaultWallpaper(),
                 if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
-                GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onHorizontalDragEnd: _handleMachineSwipe,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              final tiles = _launcherTiles(
-                                context,
-                                enabled: terminalEnabled,
-                                onWallpaper: wallpaper != null,
-                              );
-                              final ids = _orderedLauncherIds(tiles.keys);
-                              return Align(
-                                alignment: Alignment.bottomCenter,
-                                child: GridView.count(
-                                  shrinkWrap: true,
-                                  padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
-                                  crossAxisCount: 4,
-                                  crossAxisSpacing: 4,
-                                  mainAxisSpacing: 4,
-                                  childAspectRatio: 0.85,
-                                  children: [
-                                    for (final id in ids)
-                                      DragTarget<String>(
-                                        key: ValueKey(id),
-                                        onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
-                                        builder: (context, candidates, _) => LongPressDraggable<String>(
-                                          data: id,
-                                          feedback: Material(
-                                            type: MaterialType.transparency,
-                                            child: SizedBox(width: 80, height: 94, child: tiles[id]),
-                                          ),
-                                          childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
-                                          child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
+                SafeArea(
+                  bottom: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            final tiles = _launcherTiles(context, enabled: terminalEnabled, onWallpaper: true);
+                            final ids = _orderedLauncherIds(tiles.keys);
+                            return Align(
+                              alignment: Alignment.bottomCenter,
+                              child: GridView.count(
+                                shrinkWrap: true,
+                                padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+                                crossAxisCount: 4,
+                                crossAxisSpacing: 4,
+                                mainAxisSpacing: 4,
+                                childAspectRatio: 0.85,
+                                children: [
+                                  for (final id in ids)
+                                    DragTarget<String>(
+                                      key: ValueKey(id),
+                                      onAcceptWithDetails: (details) => _moveLauncherTile(ids, details.data, id),
+                                      builder: (context, candidates, _) => LongPressDraggable<String>(
+                                        data: id,
+                                        feedback: Material(
+                                          type: MaterialType.transparency,
+                                          child: SizedBox(width: 80, height: 94, child: tiles[id]),
                                         ),
+                                        childWhenDragging: Opacity(opacity: 0.3, child: tiles[id]),
+                                        child: Opacity(opacity: candidates.isEmpty ? 1 : 0.6, child: tiles[id]),
                                       ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                        _ConnectionStatusChip(
+                      ),
+                      if (widget.handle != null) const SizedBox(height: _MachinePagerState.indicatorGap),
+                      Visibility(
+                        visible: widget.handle == null,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: _ConnectionStatusChip(
                           status: _connectionStatus,
                           name: widget.desktop['name']?.toString() ?? '',
-                          onWallpaper: wallpaper != null,
+                          onWallpaper: true,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
                 for (final entry in _windowManager.windows)
@@ -513,12 +716,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         fit: StackFit.expand,
         children: [
           wallpaper != null
-              ? Image.memory(
-                  wallpaper,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(color: Theme.of(context).scaffoldBackgroundColor),
-                )
-              : Container(color: Theme.of(context).scaffoldBackgroundColor),
+              ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
+              : const _DefaultWallpaper(),
           if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
           SafeArea(
             child: Column(
@@ -596,19 +795,19 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   }
 
   String get _connectionStatusLabel => switch (_connectionStatus) {
-    _DesktopConnectionStatus.checking => 'Connecting',
-    _DesktopConnectionStatus.p2p => 'P2P',
-    _DesktopConnectionStatus.routed => 'Routed',
-    _DesktopConnectionStatus.offline => 'Offline',
+    DesktopConnectionStatus.checking => 'Connecting',
+    DesktopConnectionStatus.p2p => 'P2P',
+    DesktopConnectionStatus.routed => 'Routed',
+    DesktopConnectionStatus.offline => 'Offline',
   };
 
   Color _connectionStatusColor(BuildContext context) {
     final palette = DeskconnPalette.of(context);
     return switch (_connectionStatus) {
-      _DesktopConnectionStatus.checking => palette.subtle,
-      _DesktopConnectionStatus.p2p => palette.statusOnline,
-      _DesktopConnectionStatus.routed => palette.statusRouted,
-      _DesktopConnectionStatus.offline => palette.statusOffline,
+      DesktopConnectionStatus.checking => palette.subtle,
+      DesktopConnectionStatus.p2p => palette.statusOnline,
+      DesktopConnectionStatus.routed => palette.statusRouted,
+      DesktopConnectionStatus.offline => palette.statusOffline,
     };
   }
 
@@ -619,9 +818,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     if (cached != null && cached.isAgentOnline) {
       cached.onDisconnected = _handleConnectionDisconnected;
       if (mounted) {
-        setState(
-          () => _connectionStatus = cached.isP2P ? _DesktopConnectionStatus.p2p : _DesktopConnectionStatus.routed,
-        );
+        setState(() => _connectionStatus = cached.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed);
       }
       unawaited(_refreshWallpaper(cached.session));
       return;
@@ -629,13 +826,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
     if (!ConnectivityService().hasConnection) {
       if (mounted) {
-        setState(() => _connectionStatus = _DesktopConnectionStatus.offline);
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
       }
       return;
     }
 
     if (mounted) {
-      setState(() => _connectionStatus = _DesktopConnectionStatus.checking);
+      setState(() => _connectionStatus = DesktopConnectionStatus.checking);
     }
 
     final authId = await DeviceIdentity.lastEmail();
@@ -645,14 +842,14 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
     if (authId == null || privateKey == null || realm == null) {
       if (mounted) {
-        setState(() => _connectionStatus = _DesktopConnectionStatus.offline);
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
       }
       return;
     }
 
     final status = await _attemptConnection(realm, authId, privateKey, webRtcEnabled);
     if (mounted) {
-      setState(() => _connectionStatus = status ?? _DesktopConnectionStatus.offline);
+      setState(() => _connectionStatus = status ?? DesktopConnectionStatus.offline);
     }
     if (status != null) {
       final session = DesktopConnectionManager().get(realm)?.session;
@@ -673,7 +870,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     }
   }
 
-  Future<_DesktopConnectionStatus?> _attemptConnection(
+  Future<DesktopConnectionStatus?> _attemptConnection(
     String realm,
     String authId,
     String privateKey,
@@ -689,13 +886,13 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
       connection.onDisconnected = _handleConnectionDisconnected;
 
       if (connection.isAgentOnline) {
-        return connection.isP2P ? _DesktopConnectionStatus.p2p : _DesktopConnectionStatus.routed;
+        return connection.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed;
       }
 
       final desktopOnline = await _isDesktopAgentOnline(connection.session);
       if (desktopOnline) {
         connection.isAgentOnline = true;
-        return connection.isP2P ? _DesktopConnectionStatus.p2p : _DesktopConnectionStatus.routed;
+        return connection.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed;
       }
 
       connection.onDisconnected = null;
@@ -709,7 +906,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
   void _handleConnectionDisconnected() {
     if (!mounted) return;
-    setState(() => _connectionStatus = _DesktopConnectionStatus.checking);
+    setState(() => _connectionStatus = DesktopConnectionStatus.checking);
     unawaited(_probeDesktopConnection());
   }
 
@@ -729,7 +926,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   Future<void> _openResourceMonitor(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -776,7 +973,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   Future<void> _openPortForward(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -823,7 +1020,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   Future<void> _openVpn(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -853,7 +1050,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   Future<void> _openNetwork(BuildContext context) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -883,7 +1080,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
   Future<void> _openFileExplorer(BuildContext context, {String? category}) async {
     final realm = _realm;
     if (realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -949,7 +1146,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     final realm = _realm;
     if (_openingTerminal ||
         realm == null ||
-        (_connectionStatus != _DesktopConnectionStatus.routed && _connectionStatus != _DesktopConnectionStatus.p2p)) {
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
       return;
     }
 
@@ -958,7 +1155,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
     try {
       final desktopName = widget.desktop['name']?.toString() ?? 'Desktop';
-      final webRtcEnabled = _connectionStatus == _DesktopConnectionStatus.p2p;
+      final webRtcEnabled = _connectionStatus == DesktopConnectionStatus.p2p;
 
       if (!context.mounted) return;
 
@@ -1025,7 +1222,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     required String realm,
     required String authId,
     required String privateKey,
-    required _DesktopConnectionStatus status,
+    required DesktopConnectionStatus status,
   }) {
     return DesktopSessionLaunchConfig(
       sessionKey: 'terminal:$realm',
@@ -1033,7 +1230,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
       realm: realm,
       authId: authId,
       privateKey: privateKey,
-      webRtcEnabled: status == _DesktopConnectionStatus.p2p,
+      webRtcEnabled: status == DesktopConnectionStatus.p2p,
     );
   }
 
@@ -1128,7 +1325,7 @@ class _LauncherTile extends StatelessWidget {
 }
 
 class _ConnectionStatusChip extends StatelessWidget {
-  final _DesktopConnectionStatus status;
+  final DesktopConnectionStatus status;
   final String name;
   final bool onWallpaper;
 
@@ -1139,10 +1336,10 @@ class _ConnectionStatusChip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final palette = DeskconnPalette.of(context);
     final (dotColor, label) = switch (status) {
-      _DesktopConnectionStatus.checking => (palette.subtle, 'Connecting'),
-      _DesktopConnectionStatus.p2p => (palette.statusOnline, 'P2P'),
-      _DesktopConnectionStatus.routed => (palette.statusRouted, 'Routed'),
-      _DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
+      DesktopConnectionStatus.checking => (palette.subtle, 'Connecting'),
+      DesktopConnectionStatus.p2p => (palette.statusOnline, 'P2P'),
+      DesktopConnectionStatus.routed => (palette.statusRouted, 'Routed'),
+      DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
     };
     final textColor = onWallpaper ? Colors.white : colorScheme.onSurface;
     final statusStyle = TextStyle(
@@ -1190,8 +1387,26 @@ class _ConnectionStatusChip extends StatelessWidget {
   }
 }
 
+class _DefaultWallpaper extends StatelessWidget {
+  const _DefaultWallpaper();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+        ),
+      ),
+    );
+  }
+}
+
 class _DesktopNavBar extends StatelessWidget {
   final bool onWallpaper;
+  final bool settingsSelected;
   final VoidCallback onMachineTap;
   final VoidCallback onWindowsTap;
   final VoidCallback onSettingsTap;
@@ -1201,6 +1416,7 @@ class _DesktopNavBar extends StatelessWidget {
     required this.onWindowsTap,
     required this.onSettingsTap,
     this.onWallpaper = false,
+    this.settingsSelected = false,
   });
 
   @override
@@ -1237,15 +1453,16 @@ class _DesktopNavBar extends StatelessWidget {
                 _DesktopNavBarItem(
                   icon: Icons.grid_view_rounded,
                   label: 'Apps',
-                  color: selectedColor,
+                  color: settingsSelected ? unselectedColor : selectedColor,
                   onTap: onWindowsTap,
-                  selected: true,
+                  selected: !settingsSelected,
                 ),
                 _DesktopNavBarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
-                  color: unselectedColor,
+                  color: settingsSelected ? selectedColor : unselectedColor,
                   onTap: onSettingsTap,
+                  selected: settingsSelected,
                 ),
               ],
             ),
