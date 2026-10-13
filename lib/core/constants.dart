@@ -36,13 +36,14 @@ class DeskconnProcedures {
   static const String deskconndAppList = 'io.xconn.deskconn.deskconnd.app.list';
   static const String deskconndAudioIsMuted = 'io.xconn.deskconn.deskconnd.audio.ismuted';
   static const String deskconndAudioToggleMute = 'io.xconn.deskconn.deskconnd.audio.togglemute';
-  static const String deskconndDeviceInfo = 'io.xconn.deskconn.deskconnd.device.info';
+  static const String deskconndMachineInfo = 'io.xconn.deskconn.deskconnd.machine.info';
   static const String deskconndFileBrowse = 'io.xconn.deskconn.deskconnd.file.browse';
   static const String deskconndFileCopy = 'io.xconn.deskconn.deskconnd.file.copy';
   static const String deskconndFileDelete = 'io.xconn.deskconn.deskconnd.file.delete';
   static const String deskconndFileRename = 'io.xconn.deskconn.deskconnd.file.rename';
   static const String deskconndIndexQuery = 'io.xconn.deskconn.deskconnd.index.query';
   static const String deskconndKeyExchange = 'io.xconn.deskconn.deskconnd.key.exchange';
+  static const String deskconndPing = 'io.xconn.deskconn.deskconnd.ping';
   static const String deskconndMprisNext = 'io.xconn.deskconn.deskconnd.mpris.next';
   static const String deskconndMprisPlayers = 'io.xconn.deskconn.deskconnd.mpris.players';
   static const String deskconndMprisPlayPause = 'io.xconn.deskconn.deskconnd.mpris.playpause';

@@ -8,10 +8,10 @@ import 'package:xconn/xconn.dart';
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
-import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
+import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart';
@@ -33,13 +33,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
 
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
-
-Uint8List _coerceBytes(dynamic raw) {
-  if (raw is Uint8List) return raw;
-  if (raw is List<int>) return Uint8List.fromList(raw);
-  if (raw is String) return Uint8List.fromList(base64.decode(raw));
-  throw FormatException('Unsupported payload type: ${raw.runtimeType}');
-}
 
 enum _DesktopConnectionStatus { checking, routed, p2p, offline }
 
@@ -144,21 +137,19 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     final realm = _realm;
     if (realm == null) return;
     try {
-      final checksumResult = await session
-          .call(DeskconnProcedures.deskconndWallpaperChecksum)
-          .timeout(DeskconnConfig.callTimeout);
-      if (checksumResult.args.isEmpty) return;
-      final checksum = checksumResult.args[0].toString();
+      final encryption = SessionEncryption.deskconnd(session);
+      final checksum = await encryption.call(DeskconnProcedures.deskconndWallpaperChecksum) as String;
 
       final cachedChecksum = await WallpaperCache.cachedChecksum(realm);
       if (cachedChecksum == checksum && _wallpaperBytes != null) return;
 
-      final getResult = await session
-          .call(DeskconnProcedures.deskconndWallpaperGet)
-          .timeout(const Duration(seconds: 120));
-      if (getResult.args.length < 2) return;
+      final wallpaper =
+          await encryption.call(DeskconnProcedures.deskconndWallpaperGet, timeout: const Duration(seconds: 120))
+              as Map<String, dynamic>;
+      final data = wallpaper['data'] as String?;
+      if (data == null || data.isEmpty) return;
 
-      final bytes = _coerceBytes(getResult.args[1]);
+      final bytes = base64.decode(data);
       await WallpaperCache.store(realm, bytes, checksum);
       if (mounted) setState(() => _wallpaperBytes = bytes);
     } catch (e) {
@@ -817,10 +808,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
   Future<bool> _isDesktopAgentOnline(Session session) async {
     try {
-      final enc = await Encryption.create();
-      await session
-          .call(DeskconnProcedures.deskconndKeyExchange, args: [enc.clientPublicKey])
-          .timeout(const Duration(seconds: 3));
+      await session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 3));
       return true;
     } catch (e) {
       if (e.toString().toLowerCase().contains('wamp.error.no_such_procedure')) {
