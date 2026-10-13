@@ -160,14 +160,19 @@ class _ReconnectingOverlay extends StatefulWidget {
 }
 
 class _ReconnectingOverlayState extends State<_ReconnectingOverlay> {
+  static const _bannerDelay = Duration(seconds: 6);
+
   OverlayEntry? _entry;
   bool _visible = false;
+  Timer? _bannerTimer;
+  StreamSubscription<bool>? _transportSubscription;
 
   @override
   void initState() {
     super.initState();
     DesktopConnectionManager().isReconnecting.addListener(_sync);
     ConnectivityService().addListener(_sync);
+    _transportSubscription = DesktopConnectionManager().onTransportChanged.listen(_notifyTransportChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
   }
 
@@ -175,11 +180,36 @@ class _ReconnectingOverlayState extends State<_ReconnectingOverlay> {
   void dispose() {
     DesktopConnectionManager().isReconnecting.removeListener(_sync);
     ConnectivityService().removeListener(_sync);
+    _transportSubscription?.cancel();
+    _bannerTimer?.cancel();
     _entry?.remove();
     super.dispose();
   }
 
-  void _sync() => _apply(DesktopConnectionManager().isReconnecting.value && ConnectivityService().hasConnection);
+  bool get _reconnecting => DesktopConnectionManager().isReconnecting.value && ConnectivityService().hasConnection;
+
+  void _sync() {
+    if (!_reconnecting) {
+      _bannerTimer?.cancel();
+      _bannerTimer = null;
+      _apply(false);
+      return;
+    }
+    if (_visible || _bannerTimer != null) return;
+    _bannerTimer = Timer(_bannerDelay, () {
+      _bannerTimer = null;
+      if (_reconnecting) _apply(true);
+    });
+  }
+
+  void _notifyTransportChanged(bool isP2P) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(isP2P ? 'Connected directly (P2P)' : 'Connected through relay'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   void _apply(bool show) {
     if (show == _visible) return;

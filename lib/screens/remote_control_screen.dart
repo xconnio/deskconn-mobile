@@ -211,7 +211,10 @@ class _RemoteControlViewState extends State<RemoteControlView> {
     }
   }
 
-  Future<void> _releaseStaleSession() => DesktopConnectionManager().release(widget.config.realm);
+  Future<void> _releaseStaleSession() async {
+    if (_session != null) return;
+    await DesktopConnectionManager().release(widget.config.realm);
+  }
 
   void _showOffline() {
     if (!mounted) return;
