@@ -274,14 +274,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
     void launch(VoidCallback open) => open();
 
     return {
-      'documents': _LauncherTile(
-        icon: Icons.description_outlined,
-        badgeColor: palette.osUbuntu,
-        title: "Documents",
-        enabled: enabled,
-        onWallpaper: onWallpaper,
-        onTap: () => launch(() => _openFileExplorer(context, category: 'documents')),
-      ),
       'files': _LauncherTile(
         icon: Icons.folder_open,
         badgeColor: palette.osKubuntu,
@@ -290,14 +282,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openFileExplorer(context)),
       ),
-      'photos': _LauncherTile(
-        icon: Icons.image_outlined,
-        badgeColor: palette.osXubuntu,
-        title: "Photos",
-        enabled: enabled,
-        onWallpaper: onWallpaper,
-        onTap: () => launch(() => _openFileExplorer(context, category: 'images')),
-      ),
       'terminal': _LauncherTile(
         icon: Icons.terminal,
         badgeColor: palette.osDebian,
@@ -305,14 +289,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
         enabled: enabled,
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openTerminal(context)),
-      ),
-      'videos': _LauncherTile(
-        icon: Icons.video_library_outlined,
-        badgeColor: palette.osWindows,
-        title: "Videos",
-        enabled: enabled,
-        onWallpaper: onWallpaper,
-        onTap: () => launch(() => _openFileExplorer(context, category: 'videos')),
       ),
       'monitor': _LauncherTile(
         icon: Icons.speed_outlined,
