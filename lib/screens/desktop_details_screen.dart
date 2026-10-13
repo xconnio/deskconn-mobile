@@ -8,7 +8,6 @@ import 'package:xconn/xconn.dart';
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
-import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
@@ -817,10 +816,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> {
 
   Future<bool> _isDesktopAgentOnline(Session session) async {
     try {
-      final enc = await Encryption.create();
-      await session
-          .call(DeskconnProcedures.deskconndKeyExchange, args: [enc.clientPublicKey])
-          .timeout(const Duration(seconds: 3));
+      await session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 3));
       return true;
     } catch (e) {
       if (e.toString().toLowerCase().contains('wamp.error.no_such_procedure')) {

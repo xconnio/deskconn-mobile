@@ -348,7 +348,7 @@ class DesktopConnectionManager {
         final connection = entry.value;
         if (_connections[key] != connection) continue;
         try {
-          await connection.session.call(DeskconnProcedures.deskconndDeviceInfo).timeout(_heartbeatTimeout);
+          await connection.session.call(DeskconnProcedures.deskconndPing).timeout(_heartbeatTimeout);
           _heartbeatMisses[connection] = null;
         } catch (e) {
           if (_connections[key] != connection) continue;

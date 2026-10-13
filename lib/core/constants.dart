@@ -43,6 +43,7 @@ class DeskconnProcedures {
   static const String deskconndFileRename = 'io.xconn.deskconn.deskconnd.file.rename';
   static const String deskconndIndexQuery = 'io.xconn.deskconn.deskconnd.index.query';
   static const String deskconndKeyExchange = 'io.xconn.deskconn.deskconnd.key.exchange';
+  static const String deskconndPing = 'io.xconn.deskconn.deskconnd.ping';
   static const String deskconndMprisNext = 'io.xconn.deskconn.deskconnd.mpris.next';
   static const String deskconndMprisPlayers = 'io.xconn.deskconn.deskconnd.mpris.players';
   static const String deskconndMprisPlayPause = 'io.xconn.deskconn.deskconnd.mpris.playpause';

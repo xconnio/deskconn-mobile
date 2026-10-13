@@ -5,7 +5,6 @@ import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
-import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
@@ -88,10 +87,7 @@ class _MachineGridState extends State<MachineGrid> {
     if (connection == null) return;
 
     try {
-      final enc = await Encryption.create();
-      await connection.session
-          .call(DeskconnProcedures.deskconndKeyExchange, args: [enc.clientPublicKey])
-          .timeout(const Duration(seconds: 4));
+      await connection.session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 4));
     } catch (_) {
       await DesktopConnectionManager().release(realm);
       if (mounted) setState(() {});
@@ -110,10 +106,7 @@ class _MachineGridState extends State<MachineGrid> {
         privateKey: privateKey,
         webRtcEnabled: webRtcEnabled,
       );
-      final enc = await Encryption.create();
-      await connection.session
-          .call(DeskconnProcedures.deskconndKeyExchange, args: [enc.clientPublicKey])
-          .timeout(const Duration(seconds: 5));
+      await connection.session.call(DeskconnProcedures.deskconndPing).timeout(const Duration(seconds: 5));
       connection.isAgentOnline = true;
       await LastUsedRealmStore.set(realm);
       return true;
