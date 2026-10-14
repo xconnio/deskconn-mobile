@@ -17,6 +17,11 @@ on:
           - beta
           - production
 
+# Back-to-back merges upload one after another instead of racing on the Play edit.
+concurrency:
+  group: play-store
+  cancel-in-progress: false
+
 jobs:
   build-aab:
     runs-on: ubuntu-latest

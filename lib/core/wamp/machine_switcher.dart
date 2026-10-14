@@ -18,19 +18,10 @@ Future<void> switchMachine(BuildContext context, {String? currentRealm}) {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 250),
       reverseTransitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (context, _, _) {
-        final theme = Theme.of(context);
-        return BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Theme(
-            data: theme.copyWith(
-              colorScheme: theme.colorScheme.copyWith(onSurface: Colors.white),
-              hintColor: Colors.white70,
-            ),
-            child: MachinesScreen(currentRealm: currentRealm, overlay: true),
-          ),
-        );
-      },
+      pageBuilder: (_, _, _) => BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: MachinesScreen(currentRealm: currentRealm, overlay: true),
+      ),
       transitionsBuilder: (_, animation, _, child) => fadeScaleTransition(animation, child),
     ),
   );
@@ -70,7 +61,7 @@ class MachinesScreen extends StatelessWidget {
             ),
         ],
       ),
-      body: MachineGrid(currentRealm: currentRealm),
+      body: MachineGrid(currentRealm: currentRealm, overlay: overlay),
     );
     if (!overlay) return screen;
 

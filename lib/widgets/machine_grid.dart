@@ -21,7 +21,10 @@ enum _RowStatus { connecting, p2p, routed, offline }
 class MachineGrid extends StatefulWidget {
   final String? currentRealm;
 
-  const MachineGrid({super.key, this.currentRealm});
+  /// Drawn over a blurred, darkened backdrop: text goes white.
+  final bool overlay;
+
+  const MachineGrid({super.key, this.currentRealm, this.overlay = false});
 
   @override
   State<MachineGrid> createState() => _MachineGridState();
@@ -262,14 +265,18 @@ class _MachineGridState extends State<MachineGrid> {
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w500,
-                                    color: Theme.of(context).hintColor,
+                                    color: widget.overlay ? Colors.white70 : Theme.of(context).hintColor,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Connected desktops will appear here',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: Theme.of(context).hintColor.withValues(alpha: 0.7)),
+                                  style: TextStyle(
+                                    color: (widget.overlay ? Colors.white70 : Theme.of(context).hintColor).withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -298,6 +305,7 @@ class _MachineGridState extends State<MachineGrid> {
                   selected: realm.isNotEmpty && realm == widget.currentRealm,
                   onTap: () => _openDesktop(context, d),
                   onStatusTap: () => _showConnectionDialog(context, d),
+                  overlay: widget.overlay,
                 );
               },
             ),
@@ -313,6 +321,8 @@ class _MachineCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onStatusTap;
 
+  final bool overlay;
+
   const _MachineCard({
     required this.name,
     required this.status,
@@ -320,6 +330,7 @@ class _MachineCard extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.onStatusTap,
+    this.overlay = false,
   });
 
   @override
@@ -381,7 +392,11 @@ class _MachineCard extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colorScheme.onSurface),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: overlay ? Colors.white : colorScheme.onSurface,
+                ),
               ),
             ),
           ],
