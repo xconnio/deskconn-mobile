@@ -4,7 +4,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_registry.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xterm/xterm.dart' show TerminalView;
+import 'package:xterm/xterm.dart' show TerminalView, TerminalViewState;
 
 class _FakeTerminalController extends TerminalController {
   _FakeTerminalController(DesktopSessionLaunchConfig config) : super(config: config);
@@ -56,10 +56,9 @@ void main() {
     expect(controllers[2].disposed, isFalse);
   });
 
-  testWidgets('only the active tab takes taps and focus after switching', (tester) async {
-    const realm = 'tabs-focus-realm';
+  Future<TerminalGroup> pumpTabs(WidgetTester tester, String realm) async {
     final config = DesktopSessionLaunchConfig(
-      sessionKey: 'tabs-focus',
+      sessionKey: realm,
       desktopName: 'Desktop',
       realm: realm,
       authId: 'user',
@@ -80,19 +79,54 @@ void main() {
       ),
     );
     await tester.pump();
+    return group;
+  }
 
-    final target = group.tabs[1].id;
-    group.selectTab(target);
-    await tester.pump();
-    await tester.pump();
+  Future<void> switchTo(WidgetTester tester, String title) async {
+    await tester.tap(find.text('3'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(title).last);
+    await tester.pumpAndSettle();
+  }
 
-    expect(find.byType(TerminalView).hitTestable(), findsOneWidget);
+  BuildContext? focusedContext() => FocusManager.instance.primaryFocus?.context;
+
+  bool keyboardOpenIn(WidgetTester tester, String tabId) => tester
+      .state<TerminalViewState>(find.descendant(of: find.byKey(ValueKey(tabId)), matching: find.byType(TerminalView)))
+      .hasInputConnection;
+
+  testWidgets('switching tabs with the keyboard closed keeps it closed and taps reach the new tab', (tester) async {
+    final group = await pumpTabs(tester, 'tabs-closed-keyboard');
+    final target = group.tabs[1];
+
+    await switchTo(tester, target.title);
+
+    expect(group.activeId, target.id);
     expect(
-      find.descendant(of: find.byKey(ValueKey(target)), matching: find.byType(TerminalView)).hitTestable(),
+      find.descendant(of: find.byKey(ValueKey(target.id)), matching: find.byType(TerminalView)).hitTestable(),
       findsOneWidget,
     );
-    final focused = FocusManager.instance.primaryFocus?.context;
-    expect(focused, isNotNull);
-    expect(focused!.findAncestorWidgetOfExactType<Visibility>()?.key, ValueKey(target));
+    expect(find.byType(TerminalView).hitTestable(), findsOneWidget);
+    for (final tab in group.tabs) {
+      expect(keyboardOpenIn(tester, tab.id), isFalse);
+    }
+
+    await tester.tap(find.descendant(of: find.byKey(ValueKey(target.id)), matching: find.byType(TerminalView)));
+    await tester.pumpAndSettle();
+    expect(keyboardOpenIn(tester, target.id), isTrue);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('switching tabs with the keyboard open moves the cursor to the new tab', (tester) async {
+    final group = await pumpTabs(tester, 'tabs-open-keyboard');
+    final target = group.tabs[1];
+    tester.view.viewInsets = const FakeViewPadding(bottom: 600);
+    addTearDown(tester.view.resetViewInsets);
+
+    await switchTo(tester, target.title);
+
+    expect(group.activeId, target.id);
+    expect(focusedContext()?.findAncestorWidgetOfExactType<Visibility>()?.key, ValueKey(target.id));
+    expect(keyboardOpenIn(tester, target.id), isTrue);
   });
 }
