@@ -61,6 +61,7 @@ class TerminalTabsView extends StatefulWidget {
 class _TerminalTabsViewState extends State<TerminalTabsView> {
   late final TerminalGroup _group;
   bool _addingTab = false;
+  bool _keyboardOpenOnSwitch = false;
 
   @override
   void initState() {
@@ -138,17 +139,23 @@ class _TerminalTabsViewState extends State<TerminalTabsView> {
               onSelect: _group.selectTab,
               onClose: _group.closeTab,
               onAdd: _addTab,
+              onBeforeSwitch: () => _keyboardOpenOnSwitch = View.of(context).viewInsets.bottom > 0,
             ),
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   for (final (index, tab) in tabs.indexed)
-                    Visibility.maintain(
+                    Visibility(
                       key: ValueKey(tab.id),
                       visible: index == activeIndex,
+                      maintainState: true,
+                      maintainAnimation: true,
+                      maintainSize: true,
                       child: TerminalPane(
                         controller: tab.controller,
+                        active: index == activeIndex,
+                        focusOnActivate: _keyboardOpenOnSwitch,
                         embedded: true,
                         onRequestClose: () => _group.closeTab(tab.id),
                       ),
@@ -170,6 +177,7 @@ class _TerminalTabBar extends StatelessWidget {
   final void Function(String id) onSelect;
   final void Function(String id) onClose;
   final VoidCallback onAdd;
+  final VoidCallback onBeforeSwitch;
 
   const _TerminalTabBar({
     required this.tabs,
@@ -178,9 +186,11 @@ class _TerminalTabBar extends StatelessWidget {
     required this.onSelect,
     required this.onClose,
     required this.onAdd,
+    required this.onBeforeSwitch,
   });
 
   Future<void> _showSwitcher(BuildContext context) {
+    onBeforeSwitch();
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF141414),
@@ -222,7 +232,10 @@ class _TerminalTabBar extends StatelessWidget {
                 title: activeTab.title,
                 active: true,
                 onSelect: () => onSelect(activeTab.id),
-                onClose: () => onClose(activeTab.id),
+                onClose: () {
+                  onBeforeSwitch();
+                  onClose(activeTab.id);
+                },
               ),
             ),
           ),
@@ -461,10 +474,19 @@ class _TabSwitcherSheet extends StatelessWidget {
 
 class TerminalPane extends StatefulWidget {
   final TerminalController controller;
+  final bool active;
+  final bool focusOnActivate;
   final bool embedded;
   final VoidCallback? onRequestClose;
 
-  const TerminalPane({super.key, required this.controller, this.embedded = false, this.onRequestClose});
+  const TerminalPane({
+    super.key,
+    required this.controller,
+    this.active = true,
+    this.focusOnActivate = false,
+    this.embedded = false,
+    this.onRequestClose,
+  });
 
   @override
   State<TerminalPane> createState() => _TerminalPaneState();
@@ -476,6 +498,8 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
   static const Duration _tapTimeout = Duration(milliseconds: 500);
 
   final xterm.TerminalController _xtermController = xterm.TerminalController();
+  final FocusNode _focusNode = FocusNode();
+  late final bool _autofocus = widget.active;
   final GlobalKey _stackKey = GlobalKey();
   final GlobalKey<TerminalViewState> _viewKey = GlobalKey<TerminalViewState>();
   late final TerminalLinkRepaint _linkRepaint;
@@ -542,7 +566,18 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     _linkRepaint.dispose();
     _xtermController.removeListener(_syncSelection);
     _xtermController.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(TerminalPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.active && widget.focusOnActivate) _focusNode.requestFocus();
+      });
+    }
   }
 
   void _close() {
@@ -675,8 +710,9 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
                   widget.controller.terminal,
                   key: _viewKey,
                   controller: _xtermController,
+                  focusNode: _focusNode,
                   theme: kTerminalTheme,
-                  autofocus: true,
+                  autofocus: _autofocus,
                   textStyle: TerminalStyle(fontSize: _fontSize),
                 ),
               ),
