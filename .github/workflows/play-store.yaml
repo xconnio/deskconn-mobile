@@ -76,7 +76,11 @@ jobs:
 
       - name: Notify Discord
         if: success()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TRACK: ${{ inputs.track || 'internal' }}
         run: |
-          curl -H "Content-Type: application/json" \
-          -d "{\"content\": \"New Deskconn Mobile Play Store upload successful (track: ${{ inputs.track || 'internal' }})\nhttps://play.google.com/store/apps/details?id=io.xconn.deskconn\"}" \
-          ${{ secrets.DISCORD_WEBHOOK }}
+          BUILD=$(( $(grep '^version:' pubspec.yaml | sed 's/.*+//') + ${{ github.run_number }} ))
+          CHANGE=$(git log -1 --format=%s)
+          CONTENT=$(printf '**Deskconn Mobile build %s** is on the Play Store (%s track)\n**What changed:** %s\nhttps://play.google.com/store/apps/details?id=io.xconn.deskconn' "$BUILD" "$TRACK" "$CHANGE")
+          jq -n --arg content "$CONTENT" '{content: $content}' | curl -sf -H "Content-Type: application/json" -d @- "$WEBHOOK"
