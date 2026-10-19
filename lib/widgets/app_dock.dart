@@ -18,7 +18,12 @@ class _PinnedApp {
 const _pinnedApps = [
   _PinnedApp(kind: DesktopAppKind.fileExplorer, title: 'Files', icon: Icons.folder_open, color: _kubuntu),
   _PinnedApp(kind: DesktopAppKind.terminal, title: 'Terminal', icon: Icons.terminal, color: _debian),
-  _PinnedApp(kind: DesktopAppKind.resourceMonitor, title: 'Monitor', icon: Icons.speed_outlined, color: _ubuntu),
+  _PinnedApp(
+    kind: DesktopAppKind.resourceMonitor,
+    title: 'Resource Monitor',
+    icon: Icons.speed_outlined,
+    color: _ubuntu,
+  ),
   _PinnedApp(kind: DesktopAppKind.portForward, title: 'Ports', icon: Icons.swap_horiz, color: _xubuntu),
 ];
 
