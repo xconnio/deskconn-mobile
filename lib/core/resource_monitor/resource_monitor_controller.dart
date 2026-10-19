@@ -12,6 +12,11 @@ class AppIcon {
   String get dataUri => 'data:$mime;base64,$data';
 }
 
+const _systemAppId = 'system';
+
+List<AppInfo> parseApps(List<dynamic> decoded) =>
+    decoded.map((e) => AppInfo.fromJson(e as Map<String, dynamic>)).where((app) => app.id != _systemAppId).toList();
+
 class ResourceMonitorController {
   final Session session;
 
@@ -31,7 +36,7 @@ class ResourceMonitorController {
 
   Future<List<AppInfo>> fetchApps() async {
     final decoded = await _encryption.call(DeskconnProcedures.deskconndAppList) as List? ?? const [];
-    return decoded.map((e) => AppInfo.fromJson(e as Map<String, dynamic>)).toList();
+    return parseApps(decoded);
   }
 
   Future<AppIcon> fetchIcon(String iconName) async {
