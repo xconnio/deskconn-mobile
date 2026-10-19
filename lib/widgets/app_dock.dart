@@ -202,7 +202,7 @@ class _AppDockState extends State<AppDock> {
                     _DockIconButton(icon: Icons.person_outline, tooltip: 'Profile', onTap: widget.onProfileTap),
                     _DockIconButton(
                       icon: Icons.desktop_windows_outlined,
-                      tooltip: 'Machine',
+                      tooltip: 'Machines',
                       onTap: widget.onMachineTap,
                     ),
                     _DockIconButton(
