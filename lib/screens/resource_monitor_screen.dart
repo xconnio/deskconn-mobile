@@ -488,7 +488,7 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
         final app = _apps[index];
         final iconBytes = _iconCache[app.iconName];
         return ListTile(
-          onLongPress: app.id == 'system' ? null : () => _showActionSheet(label: app.name, pids: app.pids),
+          onLongPress: () => _showActionSheet(label: app.name, pids: app.pids),
           leading: CircleAvatar(
             backgroundColor: DeskconnPalette.of(context).surfaceTint,
             backgroundImage: iconBytes != null ? MemoryImage(iconBytes) : null,
