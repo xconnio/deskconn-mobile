@@ -292,6 +292,16 @@ class DesktopConnectionManager {
       return DesktopConnection(session: signalingSession, isP2P: false);
     }
 
+    try {
+      await checkAgentOnline(signalingSession, const Duration(seconds: 4));
+    } on ApplicationError catch (e) {
+      _log('connect failed realm=$realm agent_offline=$e');
+      try {
+        await signalingSession.close();
+      } catch (_) {}
+      rethrow;
+    } catch (_) {}
+
     await _awaitWebRtcDisposeCooldown(realm);
     if (!kIsWeb) {
       try {
