@@ -499,7 +499,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     void launch(VoidCallback open) => open();
 
     return {
-      'files': _LauncherTile(
+      'files': LauncherTile(
         icon: Icons.folder_open,
         badgeColor: palette.osKubuntu,
         title: "Files",
@@ -507,7 +507,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openFileExplorer(context)),
       ),
-      'terminal': _LauncherTile(
+      'terminal': LauncherTile(
         icon: Icons.terminal,
         badgeColor: palette.osDebian,
         title: "Terminal",
@@ -515,7 +515,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openTerminal(context)),
       ),
-      'monitor': _LauncherTile(
+      'monitor': LauncherTile(
         icon: Icons.speed_outlined,
         badgeColor: palette.osUbuntu,
         title: "Resource Monitor",
@@ -523,7 +523,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openResourceMonitor(context)),
       ),
-      'network': _LauncherTile(
+      'network': LauncherTile(
         icon: Icons.lan_outlined,
         badgeColor: palette.osXubuntu,
         title: "Network",
@@ -1269,7 +1269,10 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   }
 }
 
-class _LauncherTile extends StatelessWidget {
+class LauncherTile extends StatelessWidget {
+  static const _labelFontSize = 13.0;
+  static const _labelLineHeight = 1.2;
+
   final IconData icon;
   final Color badgeColor;
   final String title;
@@ -1277,7 +1280,8 @@ class _LauncherTile extends StatelessWidget {
   final bool enabled;
   final bool onWallpaper;
 
-  const _LauncherTile({
+  const LauncherTile({
+    super.key,
     required this.icon,
     required this.badgeColor,
     required this.title,
@@ -1313,10 +1317,21 @@ class _LauncherTile extends StatelessWidget {
             child: Icon(icon, size: 26, color: Colors.white),
           ),
           const SizedBox(height: 4),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: textColor, fontWeight: FontWeight.w500, fontSize: 13, shadows: textShadows),
+          SizedBox(
+            height: MediaQuery.textScalerOf(context).scale(_labelFontSize) * _labelLineHeight * 2,
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w500,
+                fontSize: _labelFontSize,
+                height: _labelLineHeight,
+                shadows: textShadows,
+              ),
+            ),
           ),
         ],
       ),
