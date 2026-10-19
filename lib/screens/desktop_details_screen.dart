@@ -518,7 +518,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
       'monitor': _LauncherTile(
         icon: Icons.speed_outlined,
         badgeColor: palette.osUbuntu,
-        title: "Monitor",
+        title: "Resource Monitor",
         enabled: enabled,
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openResourceMonitor(context)),
@@ -945,7 +945,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         final palette = DeskconnPalette.of(context);
         _windowManager.open(
           DesktopAppKind.resourceMonitor,
-          title: 'Monitor',
+          title: 'Resource Monitor',
           icon: Icons.speed_outlined,
           iconColor: palette.osUbuntu,
           content: ResourceMonitorView(config: config, embedded: true),
@@ -958,7 +958,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
 
       _openMobileApp(
         DesktopAppKind.resourceMonitor,
-        title: 'Monitor',
+        title: 'Resource Monitor',
         icon: Icons.speed_outlined,
         iconColor: DeskconnPalette.of(context).osUbuntu,
         builder: (_, _) => ResourceMonitorScreen(config: config),
