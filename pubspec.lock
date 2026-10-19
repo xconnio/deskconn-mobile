@@ -1374,7 +1374,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: ce440b687fd6ac36b2cb737efb4054857d69ac21
+      resolved-ref: a45c47f8cd6d8676827612e2e8159367321fd9bc
       url: "https://github.com/xconnio/xterm.dart"
     source: git
     version: "4.0.0"
