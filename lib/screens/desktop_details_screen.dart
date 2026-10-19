@@ -1446,7 +1446,7 @@ class _DesktopNavBar extends StatelessWidget {
               children: [
                 _DesktopNavBarItem(
                   icon: Icons.desktop_windows_outlined,
-                  label: 'Machine',
+                  label: 'Machines',
                   color: unselectedColor,
                   onTap: onMachineTap,
                 ),
