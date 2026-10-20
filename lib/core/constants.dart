@@ -35,8 +35,11 @@ class DeskconnProcedures {
   static const String deskconndAppIcon = 'io.xconn.deskconn.deskconnd.app.icon';
   static const String deskconndAppList = 'io.xconn.deskconn.deskconnd.app.list';
   static const String deskconndAudioIsMuted = 'io.xconn.deskconn.deskconnd.audio.ismuted';
+  static const String deskconndCapabilitiesList = 'io.xconn.deskconn.deskconnd.capabilities.list';
+  static const String deskconndCapabilitiesWatch = 'io.xconn.deskconn.deskconnd.capabilities.watch';
   static const String deskconndAudioToggleMute = 'io.xconn.deskconn.deskconnd.audio.togglemute';
   static const String deskconndMachineInfo = 'io.xconn.deskconn.deskconnd.machine.info';
+  static const String deskconndManifestGet = 'io.xconn.deskconn.deskconnd.manifest.get';
   static const String deskconndFileBrowse = 'io.xconn.deskconn.deskconnd.file.browse';
   static const String deskconndFileCopy = 'io.xconn.deskconn.deskconnd.file.copy';
   static const String deskconndFileDelete = 'io.xconn.deskconn.deskconnd.file.delete';
