@@ -51,6 +51,11 @@ dependencies:
     git: https://github.com/xconnio/xterm.dart
   xconn:
     git: https://github.com/xconnio/xconn-dart
+  app_engine:
+    git:
+      url: https://github.com/xconnio/app-engine
+      path: dart
+      ref: main
   xconn_webrtc_dart:
     git: https://github.com/xconnio/xconn-webrtc-dart.git
   flutter_webrtc: 1.6.0
