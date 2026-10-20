@@ -37,6 +37,13 @@ class SessionEncryption {
   static SessionEncryption media(Session session) =>
       _media[session] ??= SessionEncryption._(session, DeskconnProcedures.deskconndMediaKeyExchange);
 
+  static final Expando<Map<String, SessionEncryption>> _byKeyExchange = Expando();
+
+  /// Encryption for an app whose key exchange is [keyExchangeProcedure], such as a
+  /// manifest app's `api.key_exchange`.
+  static SessionEncryption forKeyExchange(Session session, String keyExchangeProcedure) =>
+      (_byKeyExchange[session] ??= {})[keyExchangeProcedure] ??= SessionEncryption._(session, keyExchangeProcedure);
+
   final Session session;
   final String keyExchangeProcedure;
   Future<Encryption>? _keys;

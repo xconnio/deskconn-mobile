@@ -41,6 +41,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
+  app_engine:
+    dependency: "direct main"
+    description:
+      path: dart
+      ref: main
+      resolved-ref: "975b5f0056b047bcf193d49b01d06c3ac5c3b368"
+      url: "https://github.com/xconnio/app-engine"
+    source: git
+    version: "0.1.0"
   app_settings:
     dependency: "direct main"
     description:
