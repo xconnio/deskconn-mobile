@@ -1318,11 +1318,11 @@ class LauncherTile extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           SizedBox(
-            height: MediaQuery.textScalerOf(context).scale(_labelFontSize) * _labelLineHeight * 2,
+            height: MediaQuery.textScalerOf(context).scale(_labelFontSize) * _labelLineHeight,
             child: Text(
               title,
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textColor,
