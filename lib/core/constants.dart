@@ -41,10 +41,11 @@ class DeskconnProcedures {
   static const String deskconndFileCopy = 'io.xconn.deskconn.file.copy';
   static const String deskconndFileDelete = 'io.xconn.deskconn.file.delete';
   static const String deskconndFileRename = 'io.xconn.deskconn.file.rename';
-  static const String deskconndIndexQuery = 'io.xconn.deskconn.index.query';
+  static const String deskconndIndexQuery = 'io.xconn.media.index.query';
   static const String deskconndKeyExchange = 'io.xconn.deskconn.key.exchange';
+  static const String deskconndMediaKeyExchange = 'io.xconn.media.key.exchange';
   static const String deskconndPing = 'io.xconn.deskconn.ping';
-  static const String deskconndRemoteControlKeyExchange = 'io.xconn.deskconn.remotecontrol.key.exchange';
+  static const String deskconndRemoteControlKeyExchange = 'io.xconn.remotecontrol.key.exchange';
   static const String deskconndMprisNext = 'io.xconn.remotecontrol.mpris.next';
   static const String deskconndMprisPlayers = 'io.xconn.remotecontrol.mpris.players';
   static const String deskconndMprisPlayPause = 'io.xconn.remotecontrol.mpris.playpause';

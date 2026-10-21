@@ -58,18 +58,15 @@ class FileExplorerController {
     return FileBrowseResult.fromJson(jsonDecode(utf8.decode(decrypted)) as Map<String, dynamic>);
   }
 
+  /// media-app serves the index with its own keys, not deskconnd's.
   Future<FileBrowseResult> index(String category) async {
-    await ensureKeyExchanged();
-    final payload = {
-      'categories': [category],
-    };
-    final encrypted = _encryption!.encrypt(utf8.encode(jsonEncode(payload)));
-    final res = await session
-        .call(DeskconnProcedures.deskconndIndexQuery, args: [encrypted])
-        .timeout(DeskconnConfig.callTimeout);
-    if (res.args.isEmpty) throw Exception('Index query failed: empty response');
-    final decrypted = _encryption!.decrypt(_coerceBytes(res.args[0]));
-    return FileBrowseResult.fromJson(jsonDecode(utf8.decode(decrypted)) as Map<String, dynamic>);
+    final result = await SessionEncryption.media(session).call(
+      DeskconnProcedures.deskconndIndexQuery,
+      arg: {
+        'categories': [category],
+      },
+    );
+    return FileBrowseResult.fromJson(result as Map<String, dynamic>);
   }
 
   Future<Uint8List> read(String path) async {
