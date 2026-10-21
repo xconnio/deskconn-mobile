@@ -25,11 +25,17 @@ class SessionEncryption {
 
   static final Expando<SessionEncryption> _remoteControl = Expando();
 
+  static final Expando<SessionEncryption> _media = Expando();
+
   static SessionEncryption deskconnd(Session session) =>
       _deskconnd[session] ??= SessionEncryption._(session, DeskconnProcedures.deskconndKeyExchange);
 
   static SessionEncryption remoteControl(Session session) =>
       _remoteControl[session] ??= SessionEncryption._(session, DeskconnProcedures.deskconndRemoteControlKeyExchange);
+
+  /// media-app's keys, for its index query (Pictures, Videos, Documents).
+  static SessionEncryption media(Session session) =>
+      _media[session] ??= SessionEncryption._(session, DeskconnProcedures.deskconndMediaKeyExchange);
 
   final Session session;
   final String keyExchangeProcedure;
