@@ -16,6 +16,7 @@ import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart';
+import 'package:deskconn_mobile_app/screens/manifest_app_screen.dart';
 import 'package:deskconn_mobile_app/screens/network_screen.dart';
 import 'package:deskconn_mobile_app/screens/port_forward_screen.dart';
 import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
@@ -268,6 +269,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   final Map<String, GlobalKey> _appSnapshotKeys = {};
   final Map<String, ui.Image> _appSnapshots = {};
   List<String> _launcherOrder = [];
+  List<ManifestAppEntry> _manifestApps = [];
+  Session? _appsWatchSession;
 
   String? get _realm => widget.desktop['realm']?.toString();
 
@@ -379,6 +382,36 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     } catch (e) {
       debugPrint('Wallpaper refresh failed: $e');
     }
+  }
+
+  /// Follows the desktop's manifest apps live while [session] is connected, so enabling or
+  /// disabling one shows or hides its tile right away.
+  Future<void> _refreshManifestApps(Session session) async {
+    if (identical(_appsWatchSession, session)) return;
+    _appsWatchSession = session;
+    bool current() => mounted && identical(_appsWatchSession, session) && session.isConnected();
+    void update(DesktopApps apps) {
+      if (current()) setState(() => _manifestApps = apps.manifestApps);
+    }
+
+    while (current()) {
+      try {
+        await watchDesktopApps(session, update);
+      } catch (e) {
+        if (e.toString().contains('wamp.error.no_such_procedure')) {
+          // The desktop's userd predates capabilities.watch: list the apps once.
+          try {
+            update(await listDesktopApps(session));
+          } catch (e) {
+            debugPrint('Manifest apps refresh failed: $e');
+          }
+          break;
+        }
+        debugPrint('Watching the desktop\'s apps failed: $e');
+        await Future<void>.delayed(const Duration(seconds: 5));
+      }
+    }
+    if (identical(_appsWatchSession, session)) _appsWatchSession = null;
   }
 
   DesktopWindowEntry? get _activeMobileApp {
@@ -531,6 +564,15 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openNetwork(context)),
       ),
+      for (final app in _manifestApps)
+        'manifest:${app.id}': LauncherTile(
+          icon: Icons.widgets_outlined,
+          badgeColor: palette.osMint,
+          title: app.name,
+          enabled: enabled,
+          onWallpaper: onWallpaper,
+          onTap: () => launch(() => _openManifestApp(context, app)),
+        ),
     };
   }
 
@@ -782,6 +824,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
                         case DesktopAppKind.network:
                           _openNetwork(context);
                           break;
+                        case DesktopAppKind.manifest:
+                          break;
                       }
                     },
                   ),
@@ -821,6 +865,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
         setState(() => _connectionStatus = cached.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed);
       }
       unawaited(_refreshWallpaper(cached.session));
+      unawaited(_refreshManifestApps(cached.session));
       return;
     }
 
@@ -853,7 +898,10 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     }
     if (status != null) {
       final session = DesktopConnectionManager().get(realm)?.session;
-      if (session != null) unawaited(_refreshWallpaper(session));
+      if (session != null) {
+        unawaited(_refreshWallpaper(session));
+        unawaited(_refreshManifestApps(session));
+      }
     }
 
     if (status == null) {
@@ -866,7 +914,10 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     if (status != null && mounted) {
       setState(() => _connectionStatus = status);
       final session = DesktopConnectionManager().get(realm)?.session;
-      if (session != null) unawaited(_refreshWallpaper(session));
+      if (session != null) {
+        unawaited(_refreshWallpaper(session));
+        unawaited(_refreshManifestApps(session));
+      }
     }
   }
 
@@ -920,6 +971,55 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
       }
       if (e is TimeoutException) return false;
       return false;
+    }
+  }
+
+  Future<void> _openManifestApp(BuildContext context, ManifestAppEntry app) async {
+    final realm = _realm;
+    if (realm == null ||
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
+      return;
+    }
+
+    try {
+      final authId = await DeviceIdentity.lastEmail();
+      final privateKey = await DeviceIdentity.privateKey();
+      if (authId == null || privateKey == null) {
+        throw Exception("Missing credentials.");
+      }
+
+      if (!context.mounted) return;
+
+      final config = _terminalConfig(realm: realm, authId: authId, privateKey: privateKey, status: _connectionStatus);
+      final iconColor = DeskconnPalette.of(context).osMint;
+
+      if (isDesktopLayout(context)) {
+        _windowManager.open(
+          DesktopAppKind.manifest,
+          category: app.id,
+          title: app.name,
+          icon: Icons.widgets_outlined,
+          iconColor: iconColor,
+          content: ManifestAppView(config: config, appId: app.id),
+          workspaceSize: MediaQuery.sizeOf(context),
+          width: 480,
+          height: 420,
+        );
+        return;
+      }
+
+      _openMobileApp(
+        DesktopAppKind.manifest,
+        category: app.id,
+        title: app.name,
+        icon: Icons.widgets_outlined,
+        iconColor: iconColor,
+        builder: (_, _) => ManifestAppScreen(config: config, app: app),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open ${app.name}: $e")));
+      }
     }
   }
 
