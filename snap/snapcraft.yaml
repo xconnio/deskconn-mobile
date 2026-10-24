@@ -1,0 +1,60 @@
+name: deskconn
+base: core22
+version: '1.0.0'
+summary: Deskconn desktop client
+description: |
+  Deskconn connects this machine to your Deskconn desktops: remote desktop,
+  remote terminal tabs, file sharing and port forwarding, all over a
+  peer-to-peer WebRTC connection when one is available.
+
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+
+apps:
+  deskconn:
+    command: bin/deskconn_mobile_app
+    desktop: share/applications/deskconn.desktop
+    extensions: [gnome]
+    plugs:
+      - network
+      - network-bind
+      - home
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - audio-playback
+      - audio-record
+
+parts:
+  deskconn:
+    plugin: dump
+    source: build/linux/x64/release/bundle
+    organize:
+      deskconn_mobile_app: bin/deskconn_mobile_app
+      data: bin/data
+      lib: bin/lib
+    override-build: |
+      craftctl default
+      install -d $CRAFT_PART_INSTALL/bin
+      for so in $CRAFT_PART_INSTALL/*.so; do
+        [ -e "$so" ] && mv "$so" $CRAFT_PART_INSTALL/bin/
+      done
+      install -d $CRAFT_PART_INSTALL/share/applications
+      install -d $CRAFT_PART_INSTALL/share/icons/hicolor/256x256/apps
+      cat > $CRAFT_PART_INSTALL/share/applications/deskconn.desktop <<'EOF'
+      [Desktop Entry]
+      Name=Deskconn
+      Comment=Remote desktop, terminal and file sharing
+      Exec=deskconn_mobile_app
+      Icon=${SNAP}/share/icons/hicolor/256x256/apps/deskconn.png
+      Terminal=false
+      Type=Application
+      Categories=Network;RemoteAccess;
+      EOF
+      install -m 644 $CRAFT_PROJECT_DIR/assets/logo/deskconn_logo.png \
+        $CRAFT_PART_INSTALL/share/icons/hicolor/256x256/apps/deskconn.png
