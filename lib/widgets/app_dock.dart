@@ -223,9 +223,8 @@ class _AppDockState extends State<AppDock> {
                         scrollDirection: Axis.horizontal,
                         shrinkWrap: true,
                         buildDefaultDragHandles: false,
-                        onReorder: (oldIndex, newIndex) {
+                        onReorderItem: (oldIndex, newIndex) {
                           setState(() {
-                            if (newIndex > oldIndex) newIndex -= 1;
                             final kind = _order.removeAt(oldIndex);
                             _order.insert(newIndex, kind);
                           });

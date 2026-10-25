@@ -68,7 +68,7 @@ connection, whichever mode the desktop's chip shows.
 ## Setup
 
 The app uses `xconn_core` from pub.dev. A Core source checkout and Rust toolchain
-are not required. Use Flutter 3.41 or newer (CI uses 3.38.7). Android builds also
+are not required. Use Flutter 3.41 or newer (CI uses 3.47.7). Android builds also
 need a Gradle-compatible JDK (17 or 21) and the Android SDK.
 
 ```sh
