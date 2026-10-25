@@ -33,22 +33,13 @@ routed through the server.
 ### P2P
 
 The WebRTC offer and ICE candidates go over the routed WAMP session. The
-connection then opens a `data` channel that carries WAMP, plus the `shell`,
-`vpn` and file-stream channels, all created before the offer.
-
-The desktop agent recognises the WAMP channel by its subprotocol
-(`wamp.2.cbor`). On Windows and Linux, flutter_webrtc's desktop plugin (still
-as of 1.6.2+hotfix.3) sends every channel's protocol as `sctp` instead. So on
-those platforms the app first sends a 4-byte RawSocket handshake
-(`0x7F 0xB3 0x00 0x00`) on the `data` channel and waits for the agent's reply
-before speaking WAMP (`_wampChannelHandshake` in
-`lib/core/wamp/desktop_connection_manager.dart`). Android, iOS and macOS keep
-using the subprotocol.
+connection carries WAMP and opens shell, VPN and file channels on demand.
+XConn Core owns ICE, DTLS, SCTP, WAMP framing and transport lifecycle in Rust.
+DeskConn retains its encrypted shell/file/port/VPN record protocols.
 
 ### Routed
 
-The WAMP session runs over QUIC, or over the router's WebSocket endpoint
-when the native QUIC library is missing (see Setup).
+The WAMP session runs over Core's native QUIC transport.
 
 The terminal can't use the WAMP session: the agent serves shells only over
 streams. So the app opens a raw QUIC stream that the router relays to the
@@ -76,74 +67,33 @@ connection, whichever mode the desktop's chip shows.
 
 ## Setup
 
-```
+The app uses `xconn_core` from pub.dev. A Core source checkout and Rust toolchain
+are not required. Use Flutter 3.41 or newer (CI uses 3.38.7). Android builds also
+need a Gradle-compatible JDK (17 or 21) and the Android SDK.
+
+```sh
 flutter pub get
+flutter test
+flutter build apk --no-tree-shake-icons --target-platform android-arm64
 ```
 
-The app talks to desktops over a QUIC transport (`lib/core/wamp/quic_library_path.dart`).
-Without the platform's native QUIC library, it silently falls back to the
-router's WebSocket endpoint instead — so if desktop connections feel slow or
-flaky, or the terminal is unavailable on a routed connection, check this
-first. Build/fetch it per platform:
+Core's Dart build hook downloads, verifies, and bundles native SDK 0.1.1.
+The first build needs access to GitHub Releases; later builds can reuse the
+verified cache. The library includes WAMP, QUIC, WebTransport and WebRTC.
+Downloaded SDKs support Android ARM64 (API 24+), Linux x86-64/ARM64, and macOS
+ARM64. iOS, Windows, and Intel macOS require a separately built native library
+configured through Core's `native_library` build-hook override. See the
+[Core package documentation](https://pub.dev/packages/xconn_core).
 
-### Android
-
-```
-make setup-quic
-```
-
-Downloads a prebuilt `.so` into `android/app/src/main/jniLibs/arm64-v8a/`. No
-Rust toolchain needed.
-
-### iOS
-
-```
-make setup-quic-ios
-```
-
-Requires the Rust toolchain (`rustup`) with the `aarch64-apple-ios` and
-`aarch64-apple-ios-sim` targets, run from a shell with `git`/`sed`/`cargo`
-available (macOS Terminal is fine). Builds static libs into
-`ios/Runner/QuicFFI/`.
+QUIC uses certificate verification against the platform's trusted roots.
+Port forwarding and VPN require a direct peer connection; shell streams also
+work through the cloud router's QUIC relay.
 
 ### Windows
 
-Requires **Git for Windows** (the recipe does `git clone`/`sed`, and its
-bundled `bash.exe` is what runs the recipe — see below), plus two things not
-needed on other platforms since `cargo build` compiles the crate locally
-here:
-
-1. **Rust toolchain** (`rustup` + `cargo`):
-   ```
-   winget install Rustlang.Rustup
-   ```
-   Restart your terminal afterwards so `cargo`/`rustc` are on `PATH`.
-
-2. **MSVC linker** (`link.exe`) — the default `x86_64-pc-windows-msvc` Rust
-   target needs it to link the DLL. Install Visual Studio Build Tools with
-   the C++ workload:
-   ```
-   winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-   ```
-   (Skip if you already have Visual Studio with "Desktop development with
-   C++".) This is a multi-GB download and can take several minutes.
-
-Then, from **any** shell (PowerShell, cmd, or Git Bash):
-```
-make setup-quic-windows
-```
-The Makefile forces this recipe through Git Bash's `bash.exe` on Windows,
-since the recipe is a POSIX shell script and Windows `make` otherwise
-defaults to `cmd.exe`, which can't parse it — but only if it finds
-`C:/Program Files/Git/bin/bash.exe` (Git for Windows' default install
-location); other targets (`install`, `lint`, etc.) still work via `cmd.exe`
-either way. If your Git install lives elsewhere, run `make setup-quic-windows`
-directly from a Git Bash terminal instead, where `make`'s own shell
-detection picks up `bash` correctly.
-
-Builds `windows/native/dart_quic_ffi.dll`, which gets bundled next to the
-`.exe` automatically by `windows/CMakeLists.txt` on the next `flutter run`/
-`flutter build windows`.
+A matching Core DLL must be supplied through the `native_library` override;
+there is no downloadable Windows SDK yet. Flutter also requires Visual Studio
+with the Desktop development with C++ workload.
 
 #### Known build issues with newer CMake / Visual Studio
 
@@ -181,22 +131,3 @@ very old `cmake_minimum_required` versions that CMake 4.x refuses outright:
 
 Both `setx` commands only affect *new* terminal sessions — open a fresh one
 (or restart your IDE) before retrying the build.
-
-### Linux
-
-Nothing to do — `linux/native/libdart_quic_ffi.so` is committed to the repo
-and gets installed next to the executable by `linux/runner/CMakeLists.txt`
-automatically.
-
-### macOS
-
-```
-make setup-quic-macos
-```
-
-Requires the Rust toolchain (`rustup`). Builds
-`macos/Runner/QuicFFI/libdart_quic_ffi.dylib`. Bundling it is still manual:
-add the dylib to the Runner target's "Copy Files" phase (Destination:
-Executables) in Xcode so it ships next to the app binary. Until that's done
-the app falls back to the WebSocket endpoint on macOS.
-

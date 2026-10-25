@@ -28,9 +28,6 @@ jobs:
       - name: Install dependencies
         run: make install
 
-      - name: Download QUIC native library
-        run: make setup-quic
-
       - name: Decode Keystore
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/deskconn-release-key.jks

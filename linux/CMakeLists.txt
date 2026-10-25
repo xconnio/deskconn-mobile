@@ -94,14 +94,6 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-# dart_quic (the QUIC/FFI transport xconn's WAMP client dials over) needs its
-# native library resolved by an explicit path (see
-# lib/core/wamp/quic_library_path.dart), not the OS's bare-name dlopen search
-# — so it just needs to sit next to the executable, not on any rpath.
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/native/libdart_quic_ffi.so"
-  DESTINATION "${CMAKE_INSTALL_PREFIX}"
-  COMPONENT Runtime)
-
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
 
