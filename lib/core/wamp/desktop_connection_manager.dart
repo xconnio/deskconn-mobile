@@ -1,20 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:xconn/xconn.dart';
-import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/file_explorer/file_explorer_controller.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
-import 'package:deskconn_mobile_app/core/vpn/vpn_tunnel.dart';
 import 'package:deskconn_mobile_app/core/wamp/file_stream_server.dart';
 import 'package:deskconn_mobile_app/core/wamp/file_stream_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/core/wamp/wamp_client.dart';
-import 'package:deskconn_mobile_app/core/wamp/webrtc_close_peer.dart';
 
 const bool kForceWebRtcOnly = false;
 
@@ -45,7 +40,7 @@ class DesktopConnection {
       await session.close();
     } catch (_) {}
     try {
-      await webRtcSession?.connection.dispose();
+      await webRtcSession?.connection.close();
     } catch (_) {}
     try {
       await _fileStreamServer?.dispose();
@@ -303,24 +298,6 @@ class DesktopConnectionManager {
     } catch (_) {}
 
     await _awaitWebRtcDisposeCooldown(realm);
-    if (!kIsWeb) {
-      try {
-        if (Platform.isAndroid) {
-          await Helper.setAndroidAudioConfiguration(
-            AndroidAudioConfiguration(manageAudioFocus: false, androidAudioMode: AndroidAudioMode.normal),
-          );
-        } else if (Platform.isIOS) {
-          await Helper.setAppleAudioConfiguration(
-            AppleAudioConfiguration(
-              appleAudioCategory: AppleAudioCategory.playback,
-              appleAudioCategoryOptions: {AppleAudioCategoryOption.mixWithOthers},
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint('Failed to configure WebRTC audio: $e');
-      }
-    }
 
     try {
       final config = web_rtc.ClientConfig(
@@ -336,10 +313,10 @@ class DesktopConnectionManager {
         authenticator: CryptoSignAuthenticator(authId, privateKey),
       );
 
-      final connection = await _connectWampWithWebRTC(config);
+      final connection = await web_rtc.connectWAMP(config);
       _webRtcFailureCount.remove(realm);
       _log('connect success realm=$realm transport=webrtc');
-      return DesktopConnection(session: connection.session, isP2P: true, webRtcSession: connection.webRtcSession);
+      return DesktopConnection(session: connection.session, isP2P: true, webRtcSession: connection);
     } catch (e) {
       _log('connect failed realm=$realm webrtc_failed=$e');
       _markWebRtcDisposed(realm, Future<void>.value());
@@ -468,156 +445,5 @@ class DesktopConnectionManager {
     _noWebRtcSupportRealms.clear();
     _webRtcFailureCount.clear();
     _everConnectedRealms.clear();
-  }
-}
-
-class _WampWebRTCConnection {
-  final Session session;
-  final web_rtc.WebRTCSession webRtcSession;
-
-  const _WampWebRTCConnection({required this.session, required this.webRtcSession});
-}
-
-class _PendingRemoteCandidate {
-  final String requestID;
-  final RTCIceCandidate candidate;
-
-  const _PendingRemoteCandidate(this.requestID, this.candidate);
-}
-
-// flutter_webrtc's desktop plugin (Windows and Linux) never passes a data
-// channel's protocol on -- every channel goes out as "sctp" -- so the agent
-// can't recognise the WAMP channel by its subprotocol the way it does for
-// mobile, and treats it as a raw file-stream channel instead. There the
-// channel has to announce itself with a RawSocket-style handshake.
-bool get _wampChannelNeedsHandshake => !kIsWeb && (Platform.isWindows || Platform.isLinux);
-
-const int _rawSocketMagic = 0x7F;
-const int _rawSocketCborSerializer = 3;
-// Magic, then max message size (2^20, as an exponent above 2^9) and serializer.
-const List<int> _wampChannelHandshakeBytes = [_rawSocketMagic, (11 << 4) | _rawSocketCborSerializer, 0, 0];
-
-Future<void> _wampChannelHandshake(RTCDataChannel channel) async {
-  final response = Completer<Uint8List>();
-  channel.onMessage = (RTCDataChannelMessage message) {
-    if (!response.isCompleted) response.complete(message.binary);
-  };
-  await channel.send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(_wampChannelHandshakeBytes)));
-
-  const timeout = Duration(seconds: 10);
-  final reply = await response.future.timeout(
-    timeout,
-    onTimeout: () => throw TimeoutException('WAMP channel handshake did not complete', timeout),
-  );
-  if (reply.length != 4 || reply[0] != _rawSocketMagic || reply[1] & 0x0F != _rawSocketCborSerializer) {
-    throw Exception('invalid WAMP channel handshake response');
-  }
-}
-
-Future<_WampWebRTCConnection> _connectWampWithWebRTC(web_rtc.ClientConfig config) async {
-  config.validate();
-
-  final offerer = web_rtc.Offerer();
-  var requestID = '';
-  final pendingCandidates = <_PendingRemoteCandidate>[];
-
-  final offerConfig = web_rtc.OfferConfig(
-    protocol: 'wamp.2.cbor',
-    iceServers: config.iceServers!,
-    ordered: true,
-    id: 0,
-    topicAnswererOnCandidate: config.topicAnswererOnCandidate,
-    additionalChannels: ['shell', kVpnChannelLabel, ...fileStreamChannelLabels()],
-    channelOptions: {
-      kVpnChannelLabel: RTCDataChannelInit()
-        ..ordered = false
-        ..maxRetransmits = 2,
-    },
-  );
-
-  offerer.waitReady().ignore();
-  for (final label in offerConfig.additionalChannels) {
-    offerer.extraChannel(label).ignore();
-  }
-
-  final offerFuture = offerer.offer(offerConfig);
-  offerFuture.ignore();
-  final subscription = await config.session.subscribe(config.topicOffererOnCandidate, (Event event) async {
-    if (event.args.length < 2) return;
-
-    final candidateRequestID = event.args[0] as String?;
-    if (candidateRequestID == null) return;
-
-    final candidateMap = jsonDecode(event.args[1] as String) as Map<String, dynamic>;
-    final candidate = RTCIceCandidate(
-      candidateMap['candidate'] as String?,
-      candidateMap['sdpMid'] as String?,
-      candidateMap['sdpMLineIndex'] as int?,
-    );
-
-    if (requestID.isEmpty) {
-      pendingCandidates.add(_PendingRemoteCandidate(candidateRequestID, candidate));
-      return;
-    }
-    if (candidateRequestID != requestID) return;
-
-    try {
-      await offerer.addICECandidate(candidate);
-    } catch (e) {
-      debugPrint('Failed to add WebRTC ICE candidate: $e');
-    }
-  });
-
-  Future<_WampWebRTCConnection> negotiate() async {
-    final offer = await offerFuture;
-    final callResponse = await config.session.call(config.procedureWebRTCOffer, args: [jsonEncode(offer)]);
-    final offerResponse = web_rtc.OfferResponse.fromJson(jsonDecode(callResponse.args[0] as String));
-
-    if (offerResponse.requestID.isEmpty) {
-      throw Exception('offer response request ID must not be empty');
-    }
-    requestID = offerResponse.requestID;
-
-    final buffered = List<_PendingRemoteCandidate>.from(pendingCandidates);
-    pendingCandidates.clear();
-    for (final pending in buffered) {
-      if (pending.requestID != requestID) continue;
-      try {
-        await offerer.addICECandidate(pending.candidate);
-      } catch (e) {
-        debugPrint('Failed to add buffered WebRTC ICE candidate: $e');
-      }
-    }
-
-    offerer.startICETrickle(config.session, offerConfig.topicAnswererOnCandidate, requestID);
-    await offerer.handleAnswer(offerResponse.answer);
-    final channel = await offerer.waitReady();
-    if (_wampChannelNeedsHandshake) await _wampChannelHandshake(channel);
-
-    final webRtcSession = web_rtc.WebRTCSession(
-      connection: offerer.connection!,
-      channel: channel,
-      incomingChannels: offerer.incomingChannels,
-      extraChannel: offerer.extraChannel,
-    );
-    final base = await joinPeer(
-      WebRTCClosePeer(web_rtc.WebRTCPeer(channel)),
-      config.realm,
-      config.serializer!,
-      config.authenticator!,
-    );
-    return _WampWebRTCConnection(session: Session(base), webRtcSession: webRtcSession);
-  }
-
-  try {
-    return await negotiate().timeout(
-      const Duration(seconds: 20),
-      onTimeout: () => throw TimeoutException('WebRTC connect did not complete', const Duration(seconds: 20)),
-    );
-  } catch (_) {
-    await offerer.connection?.dispose();
-    rethrow;
-  } finally {
-    unawaited(subscription.unsubscribe().catchError((_) {}));
   }
 }

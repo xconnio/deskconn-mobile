@@ -8,7 +8,7 @@ import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart' show saveToDevice;
 import 'package:flutter/material.dart';
-import 'package:xconn/xconn.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
 const _procLock = DeskconnProcedures.deskconndScreenLock;
 const _procBrightnessGet = DeskconnProcedures.deskconndScreenBrightnessGet;

@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:xconn/xconn.dart';
-import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'terminal_encryption.dart';
 
@@ -57,7 +57,7 @@ Future<ShellHandle> openShell(
   void Function() onClose,
 ) async {
   final channel = await session.extraChannel(shellChannelLabel);
-  if (channel.state != RTCDataChannelState.RTCDataChannelOpen) {
+  if (channel.state != ChannelState.open) {
     throw ShellChannelUnavailableException();
   }
   final enc = await Encryption.create();
@@ -72,7 +72,7 @@ Future<ShellHandle> openShell(
 
   void sendControl(Map<String, dynamic> msg) {
     try {
-      channel.send(RTCDataChannelMessage.fromBinary(envelope(_kindControl, utf8.encode(jsonEncode(msg)))));
+      channel.send(ChannelMessage.fromBinary(envelope(_kindControl, utf8.encode(jsonEncode(msg)))));
     } catch (_) {}
   }
 
@@ -85,7 +85,7 @@ Future<ShellHandle> openShell(
     } catch (_) {}
   }
 
-  channel.onMessage = (RTCDataChannelMessage msg) {
+  channel.onMessage = (ChannelMessage msg) {
     if (!peerKeyCompleter.isCompleted) {
       if (msg.isBinary) {
         peerKeyCompleter.completeError(ShellStreamException('expected plaintext key-exchange frame first'));
@@ -119,7 +119,7 @@ Future<ShellHandle> openShell(
   };
 
   channel.onDataChannelState = (state) {
-    if (state == RTCDataChannelState.RTCDataChannelClosing || state == RTCDataChannelState.RTCDataChannelClosed) {
+    if (state == ChannelState.closing || state == ChannelState.closed) {
       pingTimer?.cancel();
       if (!peerKeyCompleter.isCompleted) {
         peerKeyCompleter.completeError(ShellStreamException('shell channel closed before key exchange'));
@@ -133,7 +133,7 @@ Future<ShellHandle> openShell(
     }
   };
 
-  await channel.send(RTCDataChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
+  await channel.send(ChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
   final peerKey = await peerKeyCompleter.future.timeout(_requestTimeout);
   await enc.acceptServerKey(Uint8List.fromList([...utf8.encode('KEY:'), ...peerKey]));
 
@@ -152,7 +152,7 @@ Future<ShellHandle> openShell(
     shellId: ack['shell_id'] as String? ?? '',
     send: (bytes) {
       try {
-        channel.send(RTCDataChannelMessage.fromBinary(envelope(_kindData, bytes)));
+        channel.send(ChannelMessage.fromBinary(envelope(_kindData, bytes)));
       } catch (_) {}
     },
     resize: (c, r) => sendControl({'op': 'size', 'cols': c, 'rows': r}),
@@ -212,9 +212,7 @@ Future<ShellHandle> openRoutedShell(
     closed = true;
     pingTimer?.cancel();
     try {
-      stream
-        ..finish()
-        ..dispose();
+      await stream.close();
     } catch (_) {}
     try {
       await session.close().timeout(_closeTimeout);

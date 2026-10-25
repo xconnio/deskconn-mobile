@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'package:deskconn_mobile_app/core/port_forward/port_channel.dart';
 import 'package:deskconn_mobile_app/core/port_forward/port_forward_service.dart';

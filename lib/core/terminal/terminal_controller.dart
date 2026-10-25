@@ -4,9 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:xterm/core.dart';
 // ignore: implementation_imports
-import 'package:xconn/src/types.dart';
-import 'package:xconn/xconn.dart';
-import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'blocking_queue.dart';
 import 'shell_stream.dart';
@@ -16,7 +15,6 @@ import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/quic_connection_manager.dart';
-import 'package:deskconn_mobile_app/core/wamp/quic_library_path.dart';
 
 enum _StreamShellResult { started, channelUnavailable, unsupported }
 
@@ -206,14 +204,12 @@ class TerminalController {
   // A routed desktop has no WebRTC session to carry the shell channel, so the
   // shell rides a raw QUIC stream relayed by the router instead.
   Future<_StreamShellResult> _runRoutedShell() async {
-    if (!hasDesktopQuicLibrary) return _StreamShellResult.unsupported;
     return _startStreamShell((onData, onExit) async {
       final session = await QUICConnectionManager().connectDedicated(
         config.realm,
         QUICDialerConfig(
           authenticator: CryptoSignAuthenticator(config.authId, config.privateKey),
           serializer: CBORSerializer(),
-          libraryPath: desktopQuicLibraryPath(),
         ),
       );
       return openRoutedShell(session, config.realm, terminal.viewWidth, terminal.viewHeight, onData, onExit);

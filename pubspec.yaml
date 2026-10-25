@@ -49,11 +49,7 @@ dependencies:
 
   xterm:
     git: https://github.com/xconnio/xterm.dart
-  xconn:
-    git: https://github.com/xconnio/xconn-dart
-  xconn_webrtc_dart:
-    git: https://github.com/xconnio/xconn-webrtc-dart.git
-  flutter_webrtc: 1.6.0
+  xconn_core: ^0.1.0
 
 
   crypto: any

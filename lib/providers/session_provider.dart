@@ -12,7 +12,7 @@ import 'package:deskconn_mobile_app/core/wamp/quic_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/wamp_client.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:xconn/xconn.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionProvider extends ChangeNotifier {
