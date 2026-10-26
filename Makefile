@@ -19,4 +19,4 @@ format:
 
 # XConn Core's Dart build hook downloads and bundles the native library.
 build-apk:
-	flutter build apk --no-tree-shake-icons
+	flutter build apk --no-tree-shake-icons --target-platform android-arm64

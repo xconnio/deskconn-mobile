@@ -42,7 +42,7 @@ jobs:
           EOF
 
       - name: Build APK
-        run: flutter build apk --no-tree-shake-icons --build-number=${{ github.run_number }}
+        run: flutter build apk --no-tree-shake-icons --target-platform android-arm64 --build-number=${{ github.run_number }}
 
       - name: Prepare APK for Release
         run: cp build/app/outputs/flutter-apk/app-release.apk deskconn-mobile-app.apk
