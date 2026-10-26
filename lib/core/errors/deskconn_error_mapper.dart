@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:deskconn_mobile_app/core/errors/deskconn_error_messages.dart';
 import 'package:deskconn_mobile_app/core/errors/deskconn_error_uris.dart';
-import 'package:xconn/xconn.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
 enum DeskconnErrorContext { signIn, signInOtp, signUp, accountVerification, forgotPassword, resetPassword, generalAuth }
 

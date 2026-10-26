@@ -91,15 +91,6 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
-# xconn's QUIC dialer is pointed at an explicit path next to the executable
-# (see lib/core/wamp/quic_library_path.dart), not a bare LoadLibrary search.
-# Optional: without it the app falls back to the router's WebSocket endpoint.
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/native/dart_quic_ffi.dll")
-  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/native/dart_quic_ffi.dll"
-    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
-    COMPONENT Runtime)
-endif()
-
 # Copy the native assets provided by the build.dart from all packages. This
 # directory is only produced when some dependency uses a native-assets build
 # hook; skip the install rather than failing when there's nothing to copy.

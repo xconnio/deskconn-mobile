@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
 
@@ -57,7 +57,7 @@ Uint8List encodeConnData(int connId, List<int> payload) {
 class PortChannel {
   PortChannel._(this._channel, this._enc, this._events);
 
-  final RTCDataChannel _channel;
+  final AppDataChannel _channel;
   final Encryption _enc;
   final StreamController<PortEnvelope> _events;
 
@@ -76,7 +76,7 @@ class PortChannel {
     final peerKeyCompleter = Completer<Uint8List>();
     final events = StreamController<PortEnvelope>();
 
-    channel.onMessage = (RTCDataChannelMessage msg) {
+    channel.onMessage = (ChannelMessage msg) {
       if (!peerKeyCompleter.isCompleted) {
         if (msg.isBinary) {
           peerKeyCompleter.completeError(PortStreamException('expected plaintext key-exchange frame first'));
@@ -99,7 +99,7 @@ class PortChannel {
     };
 
     channel.onDataChannelState = (state) {
-      if (state != RTCDataChannelState.RTCDataChannelClosing && state != RTCDataChannelState.RTCDataChannelClosed) {
+      if (state != ChannelState.closing && state != ChannelState.closed) {
         return;
       }
       if (!peerKeyCompleter.isCompleted) {
@@ -109,7 +109,7 @@ class PortChannel {
     };
 
     try {
-      await channel.send(RTCDataChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
+      await channel.send(ChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
       final peerKey = await peerKeyCompleter.future.timeout(portRequestTimeout);
       await enc.acceptServerKey(Uint8List.fromList([...utf8.encode('KEY:'), ...peerKey]));
       _log("'$label' key exchange done");
@@ -125,8 +125,8 @@ class PortChannel {
     return PortChannel._(channel, enc, events);
   }
 
-  static Future<RTCDataChannel> _createChannel(web_rtc.WebRTCSession session, String label) async {
-    final channel = await session.openChannel(label, RTCDataChannelInit()..ordered = true);
+  static Future<AppDataChannel> _createChannel(web_rtc.WebRTCSession session, String label) async {
+    final channel = await session.openChannel(label, ChannelOptions()..ordered = true);
     _log("'$label' createDataChannel returned, initial state=${channel.state}");
 
     channel.onDataChannelState = (state) {
@@ -146,7 +146,7 @@ class PortChannel {
 
   Future<void> _send(int kind, List<int> plaintext) async {
     if (_closed) throw PortStreamException('channel is closed');
-    await _channel.send(RTCDataChannelMessage.fromBinary(Uint8List.fromList([kind, ..._enc.encrypt(plaintext)])));
+    await _channel.send(ChannelMessage.fromBinary(Uint8List.fromList([kind, ..._enc.encrypt(plaintext)])));
   }
 
   void startPing() {
@@ -158,12 +158,7 @@ class PortChannel {
 
   Future<void> waitForSendReady() async {
     if ((_channel.bufferedAmount ?? 0) <= _sendBufferHighWater) return;
-    final ready = Completer<void>();
-    _channel.bufferedAmountLowThreshold = _sendBufferLowWater;
-    _channel.onBufferedAmountLow = (_) {
-      if (!ready.isCompleted) ready.complete();
-    };
-    await ready.future.timeout(portRequestTimeout);
+    await _channel.waitBufferedBelow(_sendBufferLowWater).timeout(portRequestTimeout);
   }
 
   Future<void> close() async {

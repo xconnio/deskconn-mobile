@@ -1,6 +1,5 @@
 import 'package:deskconn_mobile_app/core/wamp/quic_connection_manager.dart';
-import 'package:deskconn_mobile_app/core/wamp/quic_library_path.dart';
-import 'package:xconn/xconn.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
 class WampClient {
   Session? _session;
@@ -10,11 +9,7 @@ class WampClient {
   Future<Session> connectCra({required String email, required String password, required String realm}) async {
     _session = await QUICConnectionManager().openSession(
       realm,
-      QUICDialerConfig(
-        authenticator: WAMPCRAAuthenticator(email, password),
-        serializer: CBORSerializer(),
-        libraryPath: desktopQuicLibraryPath(),
-      ),
+      QUICDialerConfig(authenticator: WAMPCRAAuthenticator(email, password), serializer: CBORSerializer()),
     );
     return _session!;
   }
@@ -22,11 +17,7 @@ class WampClient {
   Future<Session> connectCryptoSign({required String authId, required String privateKey, required String realm}) async {
     _session = await QUICConnectionManager().openSession(
       realm,
-      QUICDialerConfig(
-        authenticator: CryptoSignAuthenticator(authId, privateKey),
-        serializer: CBORSerializer(),
-        libraryPath: desktopQuicLibraryPath(),
-      ),
+      QUICDialerConfig(authenticator: CryptoSignAuthenticator(authId, privateKey), serializer: CBORSerializer()),
     );
     return _session!;
   }
@@ -39,11 +30,7 @@ class WampClient {
   }) async {
     _session = await QUICConnectionManager().openSession(
       realm,
-      QUICDialerConfig(
-        authenticator: CryptoSignAuthenticator(authId, privateKey),
-        serializer: serializer,
-        libraryPath: desktopQuicLibraryPath(),
-      ),
+      QUICDialerConfig(authenticator: CryptoSignAuthenticator(authId, privateKey), serializer: serializer),
     );
     return _session!;
   }

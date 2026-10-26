@@ -4,8 +4,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:xconn_webrtc_dart/xconn_webrtc_dart.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
 
@@ -29,6 +29,9 @@ class FileStreamRangeResult {
 const int _kindControl = 0;
 const int _kindData = 1;
 const int _parallelChunkSize = 4 * 1024 * 1024;
+// A 4 MiB read plus its acknowledgement exceeds Core's 64-packet queue.
+// Bound each worker's response burst while retaining parallel downloads.
+const int _downloadChunkSize = 1024 * 1024;
 const int _defaultParallelWorkers = 4;
 const int _wireChunkSize = 65024;
 const int _sendBufferHighWater = 512 * 1024;
@@ -43,19 +46,22 @@ class _Envelope {
 }
 
 class _FileStreamChannel {
-  _FileStreamChannel._(this._channel, this._enc, this._events);
+  _FileStreamChannel._(this._channel, this._enc, this._events, this._controls);
 
-  final RTCDataChannel _channel;
+  final AppDataChannel _channel;
   final Encryption _enc;
   final Stream<_Envelope> _events;
+  final StreamIterator<_Envelope> _controls;
 
   static Future<_FileStreamChannel> open(web_rtc.WebRTCSession session, String label) async {
     final channel = await session.extraChannel(label);
     final enc = await Encryption.create();
     final peerKeyCompleter = Completer<Uint8List>();
     final eventsController = StreamController<_Envelope>.broadcast();
+    // Control replies must survive gaps between requests and send completion.
+    final controlsController = StreamController<_Envelope>();
 
-    channel.onMessage = (RTCDataChannelMessage msg) {
+    channel.onMessage = (ChannelMessage msg) {
       if (!peerKeyCompleter.isCompleted) {
         if (msg.isBinary) {
           peerKeyCompleter.completeError(Exception('expected plaintext key-exchange frame first'));
@@ -74,33 +80,48 @@ class _FileStreamChannel {
       final kind = msg.binary[0];
       try {
         final plaintext = enc.decrypt(msg.binary.sublist(1));
-        if (!eventsController.isClosed) eventsController.add(_Envelope(kind, plaintext));
+        final controller = kind == _kindControl ? controlsController : eventsController;
+        if (!controller.isClosed) controller.add(_Envelope(kind, plaintext));
       } catch (e) {
         if (!eventsController.isClosed) eventsController.addError(e);
+        if (!controlsController.isClosed) controlsController.addError(e);
       }
     };
 
     channel.onDataChannelState = (state) {
-      if (state == RTCDataChannelState.RTCDataChannelClosing || state == RTCDataChannelState.RTCDataChannelClosed) {
+      if (state == ChannelState.closing || state == ChannelState.closed) {
         if (!peerKeyCompleter.isCompleted) {
           peerKeyCompleter.completeError(Exception('file-stream channel closed before key exchange'));
         }
+        final failure = channel.failure;
+        if (failure != null) {
+          if (!eventsController.isClosed) eventsController.addError(failure);
+          if (!controlsController.isClosed) controlsController.addError(failure);
+        }
         if (!eventsController.isClosed) unawaited(eventsController.close());
+        if (!controlsController.isClosed) unawaited(controlsController.close());
       }
     };
 
-    await channel.send(RTCDataChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
+    await channel.send(ChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
     final peerKey = await peerKeyCompleter.future.timeout(_requestTimeout);
     await enc.acceptServerKey(Uint8List.fromList([...utf8.encode('KEY:'), ...peerKey]));
 
-    return _FileStreamChannel._(channel, enc, eventsController.stream);
+    return _FileStreamChannel._(channel, enc, eventsController.stream, StreamIterator(controlsController.stream));
+  }
+
+  Future<_Envelope> _nextControl() async {
+    if (!await _controls.moveNext().timeout(_requestTimeout)) {
+      throw StateError('file-stream channel closed before acknowledgement');
+    }
+    return _controls.current;
   }
 
   Future<Map<String, dynamic>> request(Map<String, dynamic> req) async {
     final payload = utf8.encode(jsonEncode(req));
-    await _channel.send(RTCDataChannelMessage.fromBinary(Uint8List.fromList([_kindControl, ..._enc.encrypt(payload)])));
+    await _channel.send(ChannelMessage.fromBinary(Uint8List.fromList([_kindControl, ..._enc.encrypt(payload)])));
 
-    final ack = await _events.firstWhere((e) => e.kind == _kindControl).timeout(_requestTimeout);
+    final ack = await _nextControl();
     final decoded = jsonDecode(utf8.decode(ack.data)) as Map<String, dynamic>;
     if (decoded['ok'] != true) {
       throw Exception(decoded['error'] as String? ?? 'remote operation failed');
@@ -189,10 +210,10 @@ class _FileStreamChannel {
     for (var i = 0; i < data.length; i += _wireChunkSize) {
       final piece = data.sublist(i, min(i + _wireChunkSize, data.length));
       await _waitForSendReady();
-      await _channel.send(RTCDataChannelMessage.fromBinary(Uint8List.fromList([_kindData, ..._enc.encrypt(piece)])));
+      await _channel.send(ChannelMessage.fromBinary(Uint8List.fromList([_kindData, ..._enc.encrypt(piece)])));
     }
 
-    final finalAck = await _events.firstWhere((e) => e.kind == _kindControl).timeout(_requestTimeout);
+    final finalAck = await _nextControl();
     final decoded = jsonDecode(utf8.decode(finalAck.data)) as Map<String, dynamic>;
     if (decoded['ok'] != true) {
       throw Exception(decoded['error'] as String? ?? 'remote write failed');
@@ -201,15 +222,11 @@ class _FileStreamChannel {
 
   Future<void> _waitForSendReady() async {
     if ((_channel.bufferedAmount ?? 0) <= _sendBufferHighWater) return;
-    final ready = Completer<void>();
-    _channel.bufferedAmountLowThreshold = _sendBufferLowWater;
-    _channel.onBufferedAmountLow = (_) {
-      if (!ready.isCompleted) ready.complete();
-    };
-    await ready.future.timeout(_requestTimeout);
+    await _channel.waitBufferedBelow(_sendBufferLowWater).timeout(_requestTimeout);
   }
 
   Future<void> close() async {
+    await _controls.cancel();
     try {
       await _channel.close();
     } catch (_) {}
@@ -278,7 +295,7 @@ class FileStreamService {
       return;
     }
 
-    final offsets = <int>[for (var off = 0; off < size; off += _parallelChunkSize) off];
+    final offsets = <int>[for (var off = 0; off < size; off += _downloadChunkSize) off];
     var nextIndex = 0;
     var totalReceived = 0;
     Object? workerError;
@@ -289,7 +306,7 @@ class FileStreamService {
         while (workerError == null) {
           if (nextIndex >= offsets.length) return;
           final offset = offsets[nextIndex++];
-          final length = min(_parallelChunkSize, size - offset);
+          final length = min(_downloadChunkSize, size - offset);
           await worker.readChunk(path, relPath, offset, length, (pieceOffset, piece) {
             destination.setPositionSync(pieceOffset);
             destination.writeFromSync(piece);

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
-import 'package:xconn/xconn.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
 Uint8List _coerceBytes(dynamic raw) {
   if (raw is Uint8List) return raw;

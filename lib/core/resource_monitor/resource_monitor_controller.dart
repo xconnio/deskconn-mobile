@@ -1,4 +1,4 @@
-import 'package:xconn/xconn.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/resource_monitor/models.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';

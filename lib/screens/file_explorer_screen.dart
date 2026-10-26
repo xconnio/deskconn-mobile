@@ -1165,10 +1165,9 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   }
 
   Future<void> _uploadFile() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: false);
-    if (!mounted || result == null || result.files.isEmpty) return;
+    final picked = await FilePicker.pickFile();
+    if (!mounted || picked == null) return;
 
-    final picked = result.files.first;
     final localPath = picked.path;
     if (localPath == null) {
       _showErrorSnackBar('Cannot get file path');
