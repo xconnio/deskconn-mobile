@@ -133,6 +133,7 @@ class _TerminalTabsViewState extends State<TerminalTabsView> {
         child: Column(
           children: [
             _TerminalTabBar(
+              group: _group,
               tabs: tabs,
               activeId: _group.activeId,
               addingTab: _addingTab,
@@ -179,6 +180,7 @@ class _TabColors {
 }
 
 class _TerminalTabBar extends StatelessWidget {
+  final TerminalGroup group;
   final List<TerminalTab> tabs;
   final String? activeId;
   final bool addingTab;
@@ -188,6 +190,7 @@ class _TerminalTabBar extends StatelessWidget {
   final VoidCallback onBeforeSwitch;
 
   const _TerminalTabBar({
+    required this.group,
     required this.tabs,
     required this.activeId,
     required this.addingTab,
@@ -205,21 +208,24 @@ class _TerminalTabBar extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-      builder: (sheetContext) => _TabSwitcherSheet(
-        tabs: tabs,
-        activeId: activeId,
-        onSelect: (id) {
-          Navigator.of(sheetContext).pop();
-          onSelect(id);
-        },
-        onClose: (id) {
-          Navigator.of(sheetContext).pop();
-          onClose(id);
-        },
-        onAdd: () {
-          Navigator.of(sheetContext).pop();
-          onAdd();
-        },
+      builder: (sheetContext) => ListenableBuilder(
+        listenable: group,
+        builder: (_, _) => _TabSwitcherSheet(
+          tabs: group.tabs,
+          activeId: group.activeId,
+          onSelect: (id) {
+            Navigator.of(sheetContext).pop();
+            onSelect(id);
+          },
+          onClose: (id) {
+            if (group.tabs.length <= 1) Navigator.of(sheetContext).pop();
+            onClose(id);
+          },
+          onAdd: () {
+            Navigator.of(sheetContext).pop();
+            onAdd();
+          },
+        ),
       ),
     );
   }
@@ -422,11 +428,11 @@ class _TabSwitcherSheet extends StatelessWidget {
           ),
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 18,
                 childAspectRatio: 1.05,
               ),
               itemCount: tabs.length,
@@ -440,7 +446,7 @@ class _TabSwitcherSheet extends StatelessWidget {
 
   Widget _card(TerminalTab tab) {
     final active = tab.id == activeId;
-    return GestureDetector(
+    final card = GestureDetector(
       onTap: () => onSelect(tab.id),
       child: Container(
         decoration: BoxDecoration(
@@ -453,7 +459,7 @@ class _TabSwitcherSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 2, 5),
+              padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
               child: Row(
                 children: [
                   Icon(Icons.terminal, size: 13, color: active ? kTerminalAccent : _TabColors.muted),
@@ -468,14 +474,6 @@ class _TabSwitcherSheet extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => onClose(tab.id),
-                    borderRadius: BorderRadius.circular(10),
-                    child: const Padding(
-                      padding: EdgeInsets.all(3),
-                      child: Icon(Icons.close, size: 13, color: _TabColors.muted),
                     ),
                   ),
                 ],
@@ -495,6 +493,34 @@ class _TabSwitcherSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(child: card),
+        Positioned(
+          top: -18,
+          right: -18,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => onClose(tab.id),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A4352),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _TabColors.bar, width: 2),
+                  boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1))],
+                ),
+                child: const Icon(Icons.close_rounded, size: 18, color: _TabColors.text),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
