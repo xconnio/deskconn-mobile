@@ -255,7 +255,8 @@ class DesktopDetailsScreen extends StatefulWidget {
   State<DesktopDetailsScreen> createState() => _DesktopDetailsScreenState();
 }
 
-class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with AutomaticKeepAliveClientMixin {
+class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => widget.handle != null;
 
@@ -279,6 +280,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
     unawaited(_loadDockAutoHide());
     unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
+    WidgetsBinding.instance.addObserver(this);
     final handle = widget.handle;
     if (handle != null) {
       handle.openRecents = () => _openRecents(context);
@@ -319,7 +321,14 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen> with Automa
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _connectionStatus != DesktopConnectionStatus.offline) return;
+    unawaited(_probeDesktopConnection());
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     ConnectivityService().removeListener(_handleConnectivityChanged);
     final realm = _realm;
     if (realm != null) DesktopConnectionManager().get(realm)?.onDisconnected = null;

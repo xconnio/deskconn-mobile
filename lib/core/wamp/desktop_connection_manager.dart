@@ -330,6 +330,8 @@ class DesktopConnectionManager {
     }
   }
 
+  Future<void> verifyConnections() => _runHeartbeat(strict: true);
+
   Future<void> _handleNetworkChanged() async {
     _webRtcFailureCount.clear();
     await _runHeartbeat(strict: true);
