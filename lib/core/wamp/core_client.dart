@@ -31,6 +31,9 @@ class Session {
     Map<String, dynamic>? options,
   }) => native.call(uri).args(args ?? []).kwargs(kwargs ?? {}).options(options ?? {}).execute();
 
+  Future<core.Result> callProgress(String uri, Function(core.Result) receiver, {List<dynamic>? args}) =>
+      native.callProgress(uri, receiver, args: args);
+
   Future<core.Result> callProgressiveProgress(
     String uri,
     Future<core.Progress> Function() sender,

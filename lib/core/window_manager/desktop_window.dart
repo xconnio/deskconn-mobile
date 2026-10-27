@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum DesktopAppKind { terminal, fileExplorer, resourceMonitor, portForward, vpn, network }
+enum DesktopAppKind { terminal, fileExplorer, textEditor, resourceMonitor, portForward, vpn, network }
 
 class DesktopWindowEntry {
   final String id;

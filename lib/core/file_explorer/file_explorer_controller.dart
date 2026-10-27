@@ -186,6 +186,8 @@ class FileExplorerController {
     _invalidateCache(path);
   }
 
+  void invalidate(String path) => _invalidateCache(path);
+
   void _invalidateCache(String path) {
     final cacheKey = '$realm:$path';
     _readCache.remove(cacheKey);

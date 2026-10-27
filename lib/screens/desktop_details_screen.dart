@@ -18,6 +18,7 @@ import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart';
 import 'package:deskconn_mobile_app/screens/network_screen.dart';
 import 'package:deskconn_mobile_app/screens/port_forward_screen.dart';
+import 'package:deskconn_mobile_app/screens/text_editor_screen.dart';
 import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
 import 'package:deskconn_mobile_app/screens/resource_monitor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
@@ -524,6 +525,14 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
         onWallpaper: onWallpaper,
         onTap: () => launch(() => _openTerminal(context)),
       ),
+      'editor': LauncherTile(
+        icon: Icons.edit_note,
+        badgeColor: palette.osWindows,
+        title: "Text Editor",
+        enabled: enabled,
+        onWallpaper: onWallpaper,
+        onTap: () => launch(() => _openTextEditor(context)),
+      ),
       'monitor': LauncherTile(
         icon: Icons.speed_outlined,
         badgeColor: palette.osUbuntu,
@@ -778,6 +787,9 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
                           break;
                         case DesktopAppKind.fileExplorer:
                           _openFileExplorer(context, category: category);
+                          break;
+                        case DesktopAppKind.textEditor:
+                          _openTextEditor(context);
                           break;
                         case DesktopAppKind.resourceMonitor:
                           _openResourceMonitor(context);
@@ -1147,6 +1159,54 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Files: $e")));
+      }
+    }
+  }
+
+  Future<void> _openTextEditor(BuildContext context) async {
+    final realm = _realm;
+    if (realm == null ||
+        (_connectionStatus != DesktopConnectionStatus.routed && _connectionStatus != DesktopConnectionStatus.p2p)) {
+      return;
+    }
+
+    try {
+      final authId = await DeviceIdentity.lastEmail();
+      final privateKey = await DeviceIdentity.privateKey();
+      if (authId == null || privateKey == null) {
+        throw Exception("Missing credentials.");
+      }
+      if (!context.mounted) return;
+
+      final config = _terminalConfig(realm: realm, authId: authId, privateKey: privateKey, status: _connectionStatus);
+      final iconColor = DeskconnPalette.of(context).osWindows;
+
+      if (isDesktopLayout(context)) {
+        late final VoidCallback closeEditorWindow;
+        final entry = _windowManager.open(
+          DesktopAppKind.textEditor,
+          title: 'Text Editor',
+          icon: Icons.edit_note,
+          iconColor: iconColor,
+          content: TextEditorScreen(config: config, onRequestClose: () => closeEditorWindow()),
+          workspaceSize: MediaQuery.sizeOf(context),
+          width: 860,
+          height: 600,
+        );
+        closeEditorWindow = () => _windowManager.close(entry.id);
+        return;
+      }
+
+      _openMobileApp(
+        DesktopAppKind.textEditor,
+        title: 'Text Editor',
+        icon: Icons.edit_note,
+        iconColor: iconColor,
+        builder: (_, close) => TextEditorScreen(config: config, onRequestClose: close),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open Text Editor: $e")));
       }
     }
   }
