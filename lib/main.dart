@@ -374,7 +374,9 @@ class _AppBootstrapState extends State<AppBootstrap> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(ConnectivityService().refresh());
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(ConnectivityService().refresh());
+    unawaited(DesktopConnectionManager().verifyConnections());
   }
 
   @override
