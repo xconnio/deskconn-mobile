@@ -1419,7 +1419,7 @@ class _DefaultWallpaper extends StatelessWidget {
   }
 }
 
-class _DesktopNavBar extends StatelessWidget {
+class _DesktopNavBar extends StatefulWidget {
   final bool onWallpaper;
   final bool settingsSelected;
   final VoidCallback onMachineTap;
@@ -1435,18 +1435,29 @@ class _DesktopNavBar extends StatelessWidget {
   });
 
   @override
+  State<_DesktopNavBar> createState() => _DesktopNavBarState();
+}
+
+class _DesktopNavBarState extends State<_DesktopNavBar> {
+  bool _fromSystemEdge = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final background = onWallpaper ? Colors.black.withValues(alpha: 0.86) : colorScheme.surface;
-    final dividerColor = onWallpaper ? Colors.white.withValues(alpha: 0.14) : colorScheme.outlineVariant;
-    final selectedColor = onWallpaper ? Colors.white : colorScheme.primary;
-    final unselectedColor = onWallpaper
+    final background = widget.onWallpaper ? Colors.black.withValues(alpha: 0.86) : colorScheme.surface;
+    final dividerColor = widget.onWallpaper ? Colors.white.withValues(alpha: 0.14) : colorScheme.outlineVariant;
+    final selectedColor = widget.onWallpaper ? Colors.white : colorScheme.primary;
+    final unselectedColor = widget.onWallpaper
         ? Colors.white.withValues(alpha: 0.6)
         : colorScheme.onSurface.withValues(alpha: 0.55);
 
     return GestureDetector(
+      onVerticalDragStart: (details) {
+        final screenHeight = MediaQuery.sizeOf(context).height;
+        _fromSystemEdge = details.globalPosition.dy >= screenHeight - MediaQuery.systemGestureInsetsOf(context).bottom;
+      },
       onVerticalDragEnd: (details) {
-        if ((details.primaryVelocity ?? 0) < -300) onWindowsTap();
+        if (!_fromSystemEdge && (details.primaryVelocity ?? 0) < -300) widget.onWindowsTap();
       },
       child: Container(
         decoration: BoxDecoration(
@@ -1463,21 +1474,21 @@ class _DesktopNavBar extends StatelessWidget {
                   icon: Icons.desktop_windows_outlined,
                   label: 'Machines',
                   color: unselectedColor,
-                  onTap: onMachineTap,
+                  onTap: widget.onMachineTap,
                 ),
                 _DesktopNavBarItem(
                   icon: Icons.grid_view_rounded,
                   label: 'Apps',
-                  color: settingsSelected ? unselectedColor : selectedColor,
-                  onTap: onWindowsTap,
-                  selected: !settingsSelected,
+                  color: widget.settingsSelected ? unselectedColor : selectedColor,
+                  onTap: widget.onWindowsTap,
+                  selected: !widget.settingsSelected,
                 ),
                 _DesktopNavBarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
-                  color: settingsSelected ? selectedColor : unselectedColor,
-                  onTap: onSettingsTap,
-                  selected: settingsSelected,
+                  color: widget.settingsSelected ? selectedColor : unselectedColor,
+                  onTap: widget.onSettingsTap,
+                  selected: widget.settingsSelected,
                 ),
               ],
             ),
