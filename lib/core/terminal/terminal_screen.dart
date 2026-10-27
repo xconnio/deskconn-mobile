@@ -228,127 +228,101 @@ class _TerminalTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeTab = tabs.firstWhere((t) => t.id == activeId, orElse: () => tabs.first);
     return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      height: 52,
+      padding: const EdgeInsets.only(left: 4, right: 4),
       decoration: const BoxDecoration(
         color: _TabColors.bar,
-        border: Border(bottom: BorderSide(color: _TabColors.border)),
+        border: Border(bottom: BorderSide(color: _TabColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _TabChip(
-                title: activeTab.title,
-                active: true,
-                onSelect: () => onSelect(activeTab.id),
-                onClose: () {
-                  onBeforeSwitch();
-                  onClose(activeTab.id);
-                },
+          Flexible(
+            child: InkWell(
+              onTap: () => _showSwitcher(context),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: kTerminalAccent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.terminal_rounded, size: 17, color: kTerminalAccent),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            activeTab.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: _TabColors.text, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            activeTab.controller.config.desktopName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: _TabColors.muted, fontSize: 11.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: _TabColors.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _TabColors.border),
-            ),
-            child: addingTab
-                ? const Padding(
-                    padding: EdgeInsets.all(9),
+          IconButton(
+            onPressed: () {
+              onBeforeSwitch();
+              onClose(activeTab.id);
+            },
+            tooltip: 'Close tab',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.close_rounded, size: 18, color: _TabColors.muted),
+          ),
+          addingTab
+              ? const SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Padding(
+                    padding: EdgeInsets.all(15),
                     child: CircularProgressIndicator(strokeWidth: 2, color: kTerminalAccent),
-                  )
-                : IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.add, color: _TabColors.text, size: 18),
-                    tooltip: 'New tab',
-                    onPressed: onAdd,
                   ),
-          ),
-          GestureDetector(
-            onTap: () => _showSwitcher(context),
-            child: Container(
-              width: 40,
-              height: 34,
-              margin: const EdgeInsets.only(left: 6),
+                )
+              : IconButton(
+                  onPressed: onAdd,
+                  tooltip: 'New tab',
+                  icon: const Icon(Icons.add_rounded, size: 24, color: _TabColors.text),
+                ),
+          const Spacer(),
+          IconButton(
+            onPressed: () => _showSwitcher(context),
+            tooltip: 'Tabs',
+            icon: Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _TabColors.surface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _TabColors.border),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: _TabColors.text, width: 1.6),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.grid_view_rounded, color: _TabColors.muted, size: 13),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${tabs.length}',
-                    style: const TextStyle(color: _TabColors.text, fontSize: 11, fontWeight: FontWeight.w700),
-                  ),
-                ],
+              child: Text(
+                '${tabs.length}',
+                style: const TextStyle(color: _TabColors.text, fontSize: 11, fontWeight: FontWeight.w700, height: 1),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TabChip extends StatelessWidget {
-  final String title;
-  final bool active;
-  final VoidCallback onSelect;
-  final VoidCallback onClose;
-
-  const _TabChip({required this.title, required this.active, required this.onSelect, required this.onClose});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onSelect,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 190),
-        padding: const EdgeInsets.only(left: 12, right: 4),
-        alignment: Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: _TabColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: active ? kTerminalAccent.withValues(alpha: 0.7) : _TabColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.terminal, size: 14, color: active ? kTerminalAccent : _TabColors.muted),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: active ? _TabColors.text : _TabColors.muted,
-                  fontSize: 12.5,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-            const SizedBox(width: 2),
-            InkWell(
-              onTap: onClose,
-              borderRadius: BorderRadius.circular(12),
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(Icons.close, size: 13, color: _TabColors.muted),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
