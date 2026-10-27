@@ -18,6 +18,7 @@ class _PinnedApp {
 const _pinnedApps = [
   _PinnedApp(kind: DesktopAppKind.fileExplorer, title: 'Files', icon: Icons.folder_open, color: _kubuntu),
   _PinnedApp(kind: DesktopAppKind.terminal, title: 'Terminal', icon: Icons.terminal, color: _debian),
+  _PinnedApp(kind: DesktopAppKind.textEditor, title: 'Text Editor', icon: Icons.edit_note, color: _windows),
   _PinnedApp(
     kind: DesktopAppKind.resourceMonitor,
     title: 'Resource Monitor',
@@ -31,6 +32,7 @@ Color _kubuntu(DeskconnPalette p) => p.osKubuntu;
 Color _debian(DeskconnPalette p) => p.osDebian;
 Color _ubuntu(DeskconnPalette p) => p.osUbuntu;
 Color _xubuntu(DeskconnPalette p) => p.osXubuntu;
+Color _windows(DeskconnPalette p) => p.osWindows;
 
 class AppDock extends StatefulWidget {
   final DesktopWindowManager manager;

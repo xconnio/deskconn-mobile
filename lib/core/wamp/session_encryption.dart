@@ -5,7 +5,7 @@ import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
-Uint8List _coerceBytes(dynamic raw) {
+Uint8List coerceBytes(dynamic raw) {
   if (raw is Uint8List) return raw;
   if (raw is List<int>) return Uint8List.fromList(raw);
   if (raw is List) return Uint8List.fromList(raw.map((v) => (v as num).toInt()).toList());
@@ -57,7 +57,7 @@ class SessionEncryption {
           .call(keyExchangeProcedure, args: [encryption.clientPublicKey])
           .timeout(DeskconnConfig.callTimeout);
       if (res.args.isEmpty) throw Exception('Key exchange failed: empty response');
-      final serverKey = _coerceBytes(res.args[0]);
+      final serverKey = coerceBytes(res.args[0]);
       final keyPayload = serverKey.length == 32
           ? Uint8List.fromList([...utf8.encode('KEY:'), ...serverKey])
           : serverKey;
@@ -76,7 +76,7 @@ class SessionEncryption {
       try {
         final res = await session.call(procedure, args: args).timeout(timeout);
         if (res.args.isEmpty) throw Exception('Empty response from $procedure');
-        return jsonDecode(utf8.decode(encryption.decrypt(_coerceBytes(res.args[0]))));
+        return jsonDecode(utf8.decode(encryption.decrypt(coerceBytes(res.args[0]))));
       } catch (e) {
         if (attempt == 0 && isKeysRejectedError(e)) {
           invalidate(encryption);

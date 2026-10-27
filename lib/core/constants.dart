@@ -41,6 +41,10 @@ class DeskconnProcedures {
   static const String deskconndFileCopy = 'io.xconn.deskconn.file.copy';
   static const String deskconndFileDelete = 'io.xconn.deskconn.file.delete';
   static const String deskconndFileRename = 'io.xconn.deskconn.file.rename';
+  static const String deskconndFileCat = 'io.xconn.deskconn.file.cat';
+  static const String deskconndFileEdit = 'io.xconn.deskconn.file.edit';
+  static const String deskconndGitStatus = 'io.xconn.deskconn.git.status';
+  static const String deskconndGitOriginal = 'io.xconn.deskconn.git.original';
   static const String deskconndIndexQuery = 'io.xconn.media.index.query';
   static const String deskconndKeyExchange = 'io.xconn.deskconn.key.exchange';
   static const String deskconndMediaKeyExchange = 'io.xconn.media.key.exchange';

@@ -36,12 +36,13 @@ void main() {
     await pumpDock(tester);
     final list = tester.widget<ReorderableListView>(find.byType(ReorderableListView));
 
-    list.onReorderItem!(0, 3);
+    list.onReorderItem!(0, 4);
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getStringList('dock_pinned_order_reorder-test'), [
       'terminal',
+      'textEditor',
       'resourceMonitor',
       'portForward',
       'fileExplorer',
@@ -52,7 +53,7 @@ void main() {
     await pumpDock(tester);
     final list = tester.widget<ReorderableListView>(find.byType(ReorderableListView));
 
-    list.onReorderItem!(3, 0);
+    list.onReorderItem!(4, 0);
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
@@ -60,6 +61,7 @@ void main() {
       'portForward',
       'fileExplorer',
       'terminal',
+      'textEditor',
       'resourceMonitor',
     ]);
   });

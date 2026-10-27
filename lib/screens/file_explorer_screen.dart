@@ -1662,6 +1662,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
   bool _isEditing = false;
   bool _isSharing = false;
   bool _contentChanged = false;
+  int _revision = 0;
 
   FileEntry get _currentEntry => _entries[_currentIndex];
 
@@ -1771,28 +1772,16 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
   }
 
   Future<void> _editText() async {
-    final entry = _currentEntry;
-    setState(() => _isEditing = true);
-    try {
-      final bytes = await widget.controller.read(_pathFor(entry));
-      if (!mounted) return;
-      final edited = await Navigator.push<Uint8List>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TextEditorScreen(bytes: bytes, fileName: entry.name),
-        ),
-      );
-      if (mounted) setState(() => _isEditing = false);
-      if (edited == null || !mounted) return;
-      await _saveEditedBytes(entry, edited, title: 'Save edited text');
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isEditing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Edit failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
-        );
-      }
-    }
+    final path = _pathFor(_currentEntry);
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TextEditorScreen(controller: widget.controller, path: path),
+      ),
+    );
+    widget.controller.invalidate(path);
+    _contentChanged = true;
+    if (mounted) setState(() => _revision++);
   }
 
   Future<void> _saveEditedBytes(FileEntry entry, Uint8List bytes, {required String title}) async {
@@ -1910,10 +1899,16 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
                 onPageChanged: (i) => setState(() => _currentIndex = i),
                 itemBuilder: (context, i) {
                   final entry = _entries[i];
-                  return _PreviewBody(controller: widget.controller, entry: entry, path: _pathFor(entry));
+                  return _PreviewBody(
+                    key: ValueKey((_pathFor(entry), _revision)),
+                    controller: widget.controller,
+                    entry: entry,
+                    path: _pathFor(entry),
+                  );
                 },
               )
             : _PreviewBody(
+                key: ValueKey(_revision),
                 controller: widget.controller,
                 entry: widget.entry,
                 path: widget.path,
@@ -2035,7 +2030,7 @@ class _PreviewBody extends StatefulWidget {
   final String path;
   final String? openAs;
 
-  const _PreviewBody({required this.controller, required this.entry, required this.path, this.openAs});
+  const _PreviewBody({super.key, required this.controller, required this.entry, required this.path, this.openAs});
 
   @override
   State<_PreviewBody> createState() => _PreviewBodyState();
