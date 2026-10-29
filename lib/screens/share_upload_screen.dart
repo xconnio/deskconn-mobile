@@ -83,8 +83,8 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
     if (!ConnectivityService().hasConnection) {
       throw Exception('No internet connection');
     }
-    final authId = await DeviceIdentity.lastEmail();
-    final privateKey = await DeviceIdentity.privateKey();
+    final authId = await DeviceIdentity.desktopAuthId();
+    final privateKey = await DeviceIdentity.desktopPrivateKey();
     if (authId == null || privateKey == null) {
       throw Exception('Missing credentials');
     }
@@ -104,8 +104,8 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
     if (!ConnectivityService().hasConnection) {
       throw Exception('No internet connection');
     }
-    final authId = await DeviceIdentity.lastEmail();
-    final privateKey = await DeviceIdentity.privateKey();
+    final authId = await DeviceIdentity.desktopAuthId();
+    final privateKey = await DeviceIdentity.desktopPrivateKey();
     if (authId == null || privateKey == null) {
       throw Exception('Missing credentials');
     }

@@ -50,7 +50,11 @@ dependencies:
 
   xterm:
     git: https://github.com/xconnio/xterm.dart
-  xconn_core: ^0.1.0
+  xconn_core:
+    git:
+      url: https://github.com/xconnio/xconn-core
+      path: bindings/dart
+      ref: 11dc411dfd3e7dcf78e03c232021eb91ad7fcdf2
 
 
   crypto: any

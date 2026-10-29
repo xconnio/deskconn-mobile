@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:xterm/core.dart';
 // ignore: implementation_imports
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
+import 'package:deskconn_mobile_app/core/auth/standalone_login.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'blocking_queue.dart';
@@ -205,13 +206,16 @@ class TerminalController {
   // shell rides a raw QUIC stream relayed by the router instead.
   Future<_StreamShellResult> _runRoutedShell() async {
     return _startStreamShell((onData, onExit) async {
-      final session = await QUICConnectionManager().connectDedicated(
-        config.realm,
-        QUICDialerConfig(
-          authenticator: CryptoSignAuthenticator(config.authId, config.privateKey),
-          serializer: CBORSerializer(),
-        ),
-      );
+      final standalone = StandaloneLogin.active;
+      final session = standalone != null
+          ? await standalone.connect(config.realm)
+          : await QUICConnectionManager().connectDedicated(
+              config.realm,
+              QUICDialerConfig(
+                authenticator: CryptoSignAuthenticator(config.authId, config.privateKey),
+                serializer: CBORSerializer(),
+              ),
+            );
       return openRoutedShell(session, config.realm, terminal.viewWidth, terminal.viewHeight, onData, onExit);
     });
   }

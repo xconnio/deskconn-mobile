@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:deskconn_mobile_app/core/auth/standalone_login.dart';
 import 'package:flutter/foundation.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
@@ -275,13 +276,15 @@ class DesktopConnectionManager {
 
     _log('connect start realm=$realm webrtcPreferred=$webRtcEnabled');
 
-    final client = WampClient();
-    final signalingSession = await client.connectCryptoSignWithSerializer(
-      authId: authId,
-      privateKey: privateKey,
-      realm: realm,
-      serializer: CBORSerializer(),
-    );
+    final standalone = StandaloneLogin.active;
+    final signalingSession = standalone != null
+        ? await standalone.connect(realm)
+        : await WampClient().connectCryptoSignWithSerializer(
+            authId: authId,
+            privateKey: privateKey,
+            realm: realm,
+            serializer: CBORSerializer(),
+          );
 
     if (!willUseWebRtc) {
       return DesktopConnection(session: signalingSession, isP2P: false);
@@ -310,7 +313,7 @@ class DesktopConnectionManager {
         ],
         serializer: CBORSerializer(),
         session: signalingSession,
-        authenticator: CryptoSignAuthenticator(authId, privateKey),
+        authenticator: standalone?.authenticator ?? CryptoSignAuthenticator(authId, privateKey),
       );
 
       final connection = await web_rtc.connectWAMP(config);

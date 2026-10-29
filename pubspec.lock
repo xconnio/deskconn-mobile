@@ -1397,10 +1397,11 @@ packages:
   xconn_core:
     dependency: "direct main"
     description:
-      name: xconn_core
-      sha256: "959fa1b8ec805dc0eb2a7ea1b50ca19392940a79b006704a0bdc692122ae5a4b"
-      url: "https://pub.dev"
-    source: hosted
+      path: "bindings/dart"
+      ref: "11dc411dfd3e7dcf78e03c232021eb91ad7fcdf2"
+      resolved-ref: "11dc411dfd3e7dcf78e03c232021eb91ad7fcdf2"
+      url: "https://github.com/xconnio/xconn-core"
+    source: git
     version: "0.1.0"
   xdg_directories:
     dependency: transitive

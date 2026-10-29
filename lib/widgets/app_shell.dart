@@ -45,8 +45,9 @@ class AppShell extends StatelessWidget {
     final account = session.account;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final name = (account?['name'] as String? ?? '').trim();
-    final email = (account?['email'] as String? ?? '').trim();
+    final standalone = session.standalone;
+    final name = (standalone?.authId ?? account?['name'] as String? ?? '').trim();
+    final email = (standalone?.host ?? account?['email'] as String? ?? '').trim();
     final initial = name.isNotEmpty
         ? name[0].toUpperCase()
         : email.isNotEmpty

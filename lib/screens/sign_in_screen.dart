@@ -3,6 +3,7 @@ import 'package:deskconn_mobile_app/core/errors/deskconn_error_messages.dart';
 import 'package:deskconn_mobile_app/screens/forgot_password_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_otp_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_up_screen.dart';
+import 'package:deskconn_mobile_app/screens/standalone_sign_in_screen.dart';
 import 'package:deskconn_mobile_app/theme/typography.dart';
 import 'package:deskconn_mobile_app/widgets/app_snack_bar.dart';
 import 'package:deskconn_mobile_app/widgets/logo.dart';
@@ -211,6 +212,15 @@ class _SignInScreenState extends State<SignInScreen> {
                                     setState(_clearForm);
                                   },
                             child: const Text('Create account'),
+                          ),
+                          TextButton(
+                            onPressed: session.isLoading
+                                ? null
+                                : () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const StandaloneSignInScreen()),
+                                  ),
+                            child: const Text('Connect to a standalone machine'),
                           ),
                         ],
                       ),

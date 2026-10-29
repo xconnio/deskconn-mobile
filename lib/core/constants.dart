@@ -6,6 +6,7 @@ class DeskconnConfig {
   static const String quicAddr = "api.deskconn.com:8081";
   static const String wampWsUrl = "wss://api.deskconn.com/ws";
   static const String realm = "io.xconn.deskconn";
+  static const String standaloneRealm = "io.xconn.deskconn.standalone";
 
   static const String mobileAppAuthRole = "xconnio:deskconn:app:mobile";
   static const String mobileAppAuthID = "deskconn-mobile-app";
