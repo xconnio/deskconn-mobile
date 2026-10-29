@@ -4,7 +4,16 @@ import 'package:deskconn_mobile_app/core/errors/deskconn_error_messages.dart';
 import 'package:deskconn_mobile_app/core/errors/deskconn_error_uris.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
-enum DeskconnErrorContext { signIn, signInOtp, signUp, accountVerification, forgotPassword, resetPassword, generalAuth }
+enum DeskconnErrorContext {
+  signIn,
+  standaloneSignIn,
+  signInOtp,
+  signUp,
+  accountVerification,
+  forgotPassword,
+  resetPassword,
+  generalAuth,
+}
 
 class DeskconnErrorMapper {
   const DeskconnErrorMapper._();
@@ -42,6 +51,9 @@ class DeskconnErrorMapper {
       DeskconnErrorUris.authenticationFailed: 'Invalid email or password.',
       DeskconnErrorUris.userNotFound: 'Invalid email or password.',
       DeskconnErrorUris.userNotVerified: 'Please verify your email before signing in.',
+    },
+    DeskconnErrorContext.standaloneSignIn: {
+      DeskconnErrorUris.authenticationFailed: 'Invalid username, password or key.',
     },
     DeskconnErrorContext.signInOtp: {
       DeskconnErrorUris.userOtpInvalid: 'The sign-in code is invalid or expired.',

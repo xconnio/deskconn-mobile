@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:xconn_core/quic.dart' as core;
 import 'package:xconn_core/xconn_core.dart' as core;
 
@@ -63,9 +64,20 @@ class QUICSession extends Session {
   Future<RelayStream> openStream() async => RelayStream(await connection.openStream());
 }
 
-Future<QUICSession> connectQUIC(String address, String realm, QUICDialerConfig config) async {
+Future<QUICSession> connectQUIC(
+  String address,
+  String realm,
+  QUICDialerConfig config, {
+  String? certificateFingerprint,
+}) async {
   final host = Uri.parse('quic://$address').host;
-  final connection = await core.QUICConnection.connect(address, serverName: host);
+  final connection = await core.QUICConnection.connect(
+    address,
+    serverName: host,
+    verifyPeerCertificate: certificateFingerprint == null
+        ? null
+        : (chain) => sha256.convert(chain.first).toString() == certificateFingerprint,
+  );
   try {
     final session = await connection
         .openSession(realm, client: core.Client(config: config))

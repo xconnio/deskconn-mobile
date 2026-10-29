@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:deskconn_mobile_app/core/auth/standalone_login.dart';
 import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/device/cryptosign_keys.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
@@ -65,6 +66,44 @@ class SessionProvider extends ChangeNotifier {
 
   List<Map<String, dynamic>> desktops = [];
   bool desktopsLoading = false;
+
+  StandaloneLogin? get standalone => StandaloneLogin.active;
+
+  Future<OperationResult> loginStandalone(StandaloneLogin login) async {
+    error = null;
+    _setLoading(true);
+
+    try {
+      final probe = await login.connect(DeskconnConfig.standaloneRealm);
+      await probe.close();
+      await login.save();
+      _enterStandalone(login);
+      return const OperationResult.success();
+    } catch (e) {
+      debugPrint('loginStandalone failed: $e');
+      return OperationResult.failure(
+        e is StateError && e.message.contains('certificate')
+            ? DeskconnErrorMessages.standaloneCertificateMismatch
+            : DeskconnErrorMapper.messageFor(
+                e,
+                context: DeskconnErrorContext.standaloneSignIn,
+                fallback: DeskconnErrorMessages.standaloneSignInFailed,
+              ),
+      );
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void _enterStandalone(StandaloneLogin login) {
+    StandaloneLogin.active = login;
+    account = null;
+    desktops = [
+      {'id': 'standalone', 'name': login.host, 'realm': DeskconnConfig.standaloneRealm},
+    ];
+    loggedIn = true;
+    notifyListeners();
+  }
 
   Future<void> _closeSignInSession() async {
     final current = _signInSession;
@@ -304,6 +343,13 @@ class SessionProvider extends ChangeNotifier {
     _setLoading(true);
 
     try {
+      final standaloneLogin = await StandaloneLogin.load();
+      if (standaloneLogin != null) {
+        _enterStandalone(standaloneLogin);
+        _setLoading(false);
+        return;
+      }
+
       await DeviceIdentity.ensureKeyPair();
       final hasIdentity = await DeviceIdentity.exists();
 
@@ -362,6 +408,11 @@ class SessionProvider extends ChangeNotifier {
   Future<void> logout() async {
     try {
       await DesktopConnectionManager().invalidateAll();
+    } catch (_) {}
+
+    StandaloneLogin.active = null;
+    try {
+      await StandaloneLogin.clear();
     } catch (_) {}
 
     try {

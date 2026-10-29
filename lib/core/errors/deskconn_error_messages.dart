@@ -7,6 +7,8 @@ class DeskconnErrorMessages {
   static const requestTimedOut = 'The request timed out. Please try again.';
 
   static const signInFailed = 'Unable to send verification code.';
+  static const standaloneSignInFailed = 'Could not connect to the machine.';
+  static const standaloneCertificateMismatch = 'The machine\'s certificate does not match the fingerprint.';
   static const signInSessionExpired = 'Sign-in session expired. Please sign in again.';
   static const invalidSignInCode = 'Invalid or expired code.';
   static const signUpFailed = 'Could not create your account.';

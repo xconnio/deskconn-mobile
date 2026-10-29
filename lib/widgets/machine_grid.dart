@@ -98,8 +98,8 @@ class _MachineGridState extends State<MachineGrid> {
   }
 
   Future<bool> _connect(String realm, bool webRtcEnabled) async {
-    final authId = await DeviceIdentity.lastEmail();
-    final privateKey = await DeviceIdentity.privateKey();
+    final authId = await DeviceIdentity.desktopAuthId();
+    final privateKey = await DeviceIdentity.desktopPrivateKey();
     if (authId == null || privateKey == null) return false;
 
     try {

@@ -147,6 +147,28 @@ class _AccountScreenState extends State<AccountScreen> {
   Widget build(BuildContext context) {
     final session = context.watch<SessionProvider>();
     final account = session.account;
+    final standalone = session.standalone;
+
+    if (standalone != null) {
+      return AppShell(
+        title: 'Account',
+        currentSection: AppShellSection.account,
+        body: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const Text('Machine'),
+            const SizedBox(height: 4),
+            Text(standalone.address),
+            const SizedBox(height: 24),
+            const Text('Username'),
+            const SizedBox(height: 4),
+            Text(standalone.authId),
+            const SizedBox(height: 24),
+            const Text('Signed in to a standalone machine, without a Deskconn account.'),
+          ],
+        ),
+      );
+    }
 
     if (account == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));

@@ -856,8 +856,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       setState(() => _connectionStatus = DesktopConnectionStatus.checking);
     }
 
-    final authId = await DeviceIdentity.lastEmail();
-    final privateKey = await DeviceIdentity.privateKey();
+    final authId = await DeviceIdentity.desktopAuthId();
+    final privateKey = await DeviceIdentity.desktopPrivateKey();
     final prefs = await SharedPreferences.getInstance();
     final webRtcEnabled = prefs.getBool(prefKeyWebRtcEnabled) ?? defaultWebRtcEnabled;
 
@@ -952,8 +952,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
+      final authId = await DeviceIdentity.desktopAuthId();
+      final privateKey = await DeviceIdentity.desktopPrivateKey();
       if (authId == null || privateKey == null) {
         throw Exception("Missing credentials.");
       }
@@ -999,8 +999,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
+      final authId = await DeviceIdentity.desktopAuthId();
+      final privateKey = await DeviceIdentity.desktopPrivateKey();
       if (authId == null || privateKey == null) {
         throw Exception("Missing credentials.");
       }
@@ -1046,8 +1046,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
+      final authId = await DeviceIdentity.desktopAuthId();
+      final privateKey = await DeviceIdentity.desktopPrivateKey();
       if (authId == null || privateKey == null) {
         throw Exception("Missing credentials.");
       }
@@ -1076,8 +1076,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
+      final authId = await DeviceIdentity.desktopAuthId();
+      final privateKey = await DeviceIdentity.desktopPrivateKey();
       if (authId == null || privateKey == null) {
         throw Exception("Missing credentials.");
       }
@@ -1106,8 +1106,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
+      final authId = await DeviceIdentity.desktopAuthId();
+      final privateKey = await DeviceIdentity.desktopPrivateKey();
       if (authId == null || privateKey == null) {
         throw Exception("Missing credentials.");
       }
@@ -1171,8 +1171,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     try {
-      final authId = await DeviceIdentity.lastEmail();
-      final privateKey = await DeviceIdentity.privateKey();
+      final authId = await DeviceIdentity.desktopAuthId();
+      final privateKey = await DeviceIdentity.desktopPrivateKey();
       if (authId == null || privateKey == null) {
         throw Exception("Missing credentials.");
       }

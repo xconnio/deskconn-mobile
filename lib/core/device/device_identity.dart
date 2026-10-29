@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:deskconn_mobile_app/core/auth/standalone_login.dart';
 import 'package:deskconn_mobile_app/core/device/cryptosign_keys.dart';
 
 class DeviceIdentity {
@@ -55,6 +56,14 @@ class DeviceIdentity {
 
   static Future<String?> privateKey() async {
     return await _secure.read(key: _privateKey);
+  }
+
+  static Future<String?> desktopAuthId() async => StandaloneLogin.active?.authId ?? await lastEmail();
+
+  static Future<String?> desktopPrivateKey() async {
+    final standalone = StandaloneLogin.active;
+    if (standalone != null) return standalone.privateKey ?? '';
+    return privateKey();
   }
 
   static Future<String?> publicKey() async {
