@@ -407,6 +407,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     while (current()) {
       try {
         await watchDesktopApps(session, update);
+        await Future<void>.delayed(const Duration(seconds: 2));
       } catch (e) {
         if (e.toString().contains('wamp.error.no_such_procedure')) {
           // The desktop's userd predates capabilities.watch: list the apps once.
