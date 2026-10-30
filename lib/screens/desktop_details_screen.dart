@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:deskconn_mobile_app/core/constants.dart';
+import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
@@ -1039,7 +1040,9 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to open ${app.name}: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(DeskconnErrorMapper.messageFor(e, fallback: "Could not open ${app.name}."))),
+        );
       }
     }
   }

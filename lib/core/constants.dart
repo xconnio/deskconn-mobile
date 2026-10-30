@@ -36,9 +36,9 @@ class DeskconnProcedures {
   static const String deskconndAppIcon = 'io.xconn.deskconn.app.icon';
   static const String deskconndAppList = 'io.xconn.deskconn.app.list';
   static const String deskconndAudioIsMuted = 'io.xconn.remotecontrol.audio.ismuted';
+  static const String deskconndAudioToggleMute = 'io.xconn.remotecontrol.audio.togglemute';
   static const String deskconndCapabilitiesList = 'io.xconn.deskconn.capabilities.list';
   static const String deskconndCapabilitiesWatch = 'io.xconn.deskconn.capabilities.watch';
-  static const String deskconndAudioToggleMute = 'io.xconn.remotecontrol.audio.togglemute';
   static const String deskconndMachineInfo = 'io.xconn.deskconn.machine.info';
   static const String deskconndManifestGet = 'io.xconn.deskconn.manifest.get';
   static const String deskconndFileBrowse = 'io.xconn.deskconn.file.browse';
