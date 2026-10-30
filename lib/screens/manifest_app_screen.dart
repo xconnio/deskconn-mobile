@@ -25,7 +25,8 @@ typedef DesktopApps = ({Map<String, bool> capabilities, List<ManifestAppEntry> m
 
 /// Reads capabilities.list's result: each app id with whether it's enabled, and the enabled
 /// manifest apps.
-DesktopApps _desktopApps(dynamic list) {
+@visibleForTesting
+DesktopApps parseDesktopApps(dynamic list) {
   final apps = (_plain(list) as List).whereType<Map<String, dynamic>>();
   return (
     capabilities: {for (final app in apps) app['id'].toString(): app['enabled'] == true},
@@ -40,14 +41,14 @@ DesktopApps _desktopApps(dynamic list) {
 /// Lists the desktop's apps once.
 Future<DesktopApps> listDesktopApps(Session session) async {
   final result = await session.call(DeskconnProcedures.deskconndCapabilitiesList).timeout(DeskconnConfig.callTimeout);
-  return _desktopApps(result.args.first);
+  return parseDesktopApps(result.args.first);
 }
 
 /// Calls [onChange] with the desktop's apps now and whenever they change, until the desktop
 /// ends the watch (it does after a while, or when [session] goes away).
 Future<void> watchDesktopApps(Session session, void Function(DesktopApps apps) onChange) async {
   await session.callProgress(DeskconnProcedures.deskconndCapabilitiesWatch, (result) {
-    if (result.args.isNotEmpty) onChange(_desktopApps(result.args.first));
+    if (result.args.isNotEmpty) onChange(parseDesktopApps(result.args.first));
   });
 }
 
