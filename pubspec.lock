@@ -46,8 +46,8 @@ packages:
     description:
       path: dart
       ref: main
-      resolved-ref: "975b5f0056b047bcf193d49b01d06c3ac5c3b368"
-      url: "https://github.com/xconnio/app-engine"
+      resolved-ref: "4fc5c19ff96998635ad94879fe406058da95dae4"
+      url: "https://github.com/xconnio/deskconn-app-engine"
     source: git
     version: "0.1.0"
   app_settings:

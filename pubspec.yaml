@@ -57,7 +57,7 @@ dependencies:
       ref: 11dc411dfd3e7dcf78e03c232021eb91ad7fcdf2
   app_engine:
     git:
-      url: https://github.com/xconnio/app-engine
+      url: https://github.com/xconnio/deskconn-app-engine
       path: dart
       ref: main
 
