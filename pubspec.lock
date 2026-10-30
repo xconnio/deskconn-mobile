@@ -41,6 +41,15 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
+  app_engine:
+    dependency: "direct main"
+    description:
+      path: dart
+      ref: main
+      resolved-ref: "4fc5c19ff96998635ad94879fe406058da95dae4"
+      url: "https://github.com/xconnio/deskconn-app-engine"
+    source: git
+    version: "0.1.0"
   app_settings:
     dependency: "direct main"
     description:
