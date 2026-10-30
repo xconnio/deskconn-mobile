@@ -5,6 +5,7 @@ import 'package:app_engine/app_engine.dart';
 import 'package:flutter/material.dart';
 
 import 'package:deskconn_mobile_app/core/constants.dart';
+import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
@@ -114,7 +115,7 @@ class _ManifestAppViewState extends State<ManifestAppView> {
         _caller = (procedure, arg) => encryption.call(procedure, arg: arg);
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = DeskconnErrorMapper.messageFor(e, fallback: 'Could not load this app.'));
     }
   }
 
