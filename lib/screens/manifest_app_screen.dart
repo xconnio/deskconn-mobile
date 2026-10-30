@@ -52,26 +52,28 @@ Future<void> watchDesktopApps(Session session, void Function(DesktopApps apps) o
 }
 
 class ManifestAppScreen extends StatelessWidget {
-  const ManifestAppScreen({super.key, required this.config, required this.app});
+  const ManifestAppScreen({super.key, required this.config, required this.app, required this.capabilities});
 
   final DesktopSessionLaunchConfig config;
   final ManifestAppEntry app;
+  final Map<String, bool> capabilities;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(app.name)),
-      body: ManifestAppView(config: config, appId: app.id),
+      body: ManifestAppView(config: config, appId: app.id, capabilities: capabilities),
     );
   }
 }
 
 /// Fetches manifest app [appId] from the desktop and renders its entry screen.
 class ManifestAppView extends StatefulWidget {
-  const ManifestAppView({super.key, required this.config, required this.appId});
+  const ManifestAppView({super.key, required this.config, required this.appId, required this.capabilities});
 
   final DesktopSessionLaunchConfig config;
   final String appId;
+  final Map<String, bool> capabilities;
 
   @override
   State<ManifestAppView> createState() => _ManifestAppViewState();
@@ -105,12 +107,11 @@ class _ManifestAppViewState extends State<ManifestAppView> {
           .call(DeskconnProcedures.deskconndManifestGet, args: [widget.appId])
           .timeout(DeskconnConfig.callTimeout);
       final app = ManifestApp(_plain(result.args.first) as Map<String, dynamic>);
-      final apps = await listDesktopApps(session);
       final encryption = SessionEncryption.forKeyExchange(session, app.keyExchange);
       if (!mounted) return;
       setState(() {
         _app = app;
-        _context = {'capabilities': apps.capabilities};
+        _context = {'capabilities': widget.capabilities};
         _caller = (procedure, arg) => encryption.call(procedure, arg: arg);
       });
     } catch (e) {

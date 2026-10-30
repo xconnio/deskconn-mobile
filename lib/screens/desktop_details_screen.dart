@@ -272,6 +272,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
   final Map<String, ui.Image> _appSnapshots = {};
   List<String> _launcherOrder = [];
   List<ManifestAppEntry> _manifestApps = [];
+  Map<String, bool> _capabilities = const {};
   Session? _appsWatchSession;
 
   String? get _realm => widget.desktop['realm']?.toString();
@@ -401,7 +402,12 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     _appsWatchSession = session;
     bool current() => mounted && identical(_appsWatchSession, session) && session.isConnected();
     void update(DesktopApps apps) {
-      if (current()) setState(() => _manifestApps = apps.manifestApps);
+      if (current()) {
+        setState(() {
+          _manifestApps = apps.manifestApps;
+          _capabilities = apps.capabilities;
+        });
+      }
     }
 
     while (current()) {
@@ -1022,7 +1028,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
           title: app.name,
           icon: Icons.widgets_outlined,
           iconColor: iconColor,
-          content: ManifestAppView(config: config, appId: app.id),
+          content: ManifestAppView(config: config, appId: app.id, capabilities: _capabilities),
           workspaceSize: MediaQuery.sizeOf(context),
           width: 480,
           height: 420,
@@ -1036,7 +1042,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
         title: app.name,
         icon: Icons.widgets_outlined,
         iconColor: iconColor,
-        builder: (_, _) => ManifestAppScreen(config: config, app: app),
+        builder: (_, _) => ManifestAppScreen(config: config, app: app, capabilities: _capabilities),
       );
     } catch (e) {
       if (context.mounted) {
