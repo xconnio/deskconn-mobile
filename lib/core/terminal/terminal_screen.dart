@@ -544,6 +544,8 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
   DateTime? _pointerDownTime;
   bool _keyboardWasOpenOnDown = false;
   String? _pendingLink;
+  Offset? _pasteMenuAnchor;
+  Timer? _longPressTimer;
 
   @override
   void initState() {
@@ -555,9 +557,6 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     _isLoading = !widget.controller.isReady;
     if (widget.controller.isReady) {
       widget.controller.clearScreen();
-      // Post-frame: send a resize signal so the server-side shell redraws its
-      // prompt after we wiped the xterm buffer. Without this the cursor sits
-      // idle because the shell has no reason to repaint.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.controller.requestRedraw();
       });
@@ -565,10 +564,6 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     widget.controller.onStarted = () {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      // The PTY is created with the client's size at that moment and only
-      // corrected once the view has laid out, so its first output is drawn at
-      // the wrong width. Wipe that and ask the shell to repaint instead of
-      // leaving wrapped/overlapping lines behind.
       widget.controller.clearScreen();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.controller.requestRedraw();
@@ -593,6 +588,7 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     _linkRepaint.dispose();
     _xtermController.removeListener(_syncSelection);
     _xtermController.dispose();
+    _longPressTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
@@ -722,8 +718,12 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
             },
             child: Listener(
               onPointerDown: _handlePointerDown,
+              onPointerMove: _handlePointerMove,
               onPointerUp: _handlePointerUp,
-              onPointerCancel: (_) => _pointerDownPosition = null,
+              onPointerCancel: (_) {
+                _pointerDownPosition = null;
+                _longPressTimer?.cancel();
+              },
               child: GestureDetector(
                 onScaleStart: (_) => _fontSizeOnScaleStart = _fontSize,
                 onScaleUpdate: (details) {
@@ -774,6 +774,17 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
 
   List<Widget> _selectionOverlay() {
     final geometry = _selectionGeometry;
+    final pasteAnchor = _pasteMenuAnchor;
+    if (geometry == null && pasteAnchor != null) {
+      return [
+        Positioned.fill(
+          child: AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: TextSelectionToolbarAnchors(primaryAnchor: pasteAnchor),
+            buttonItems: [ContextMenuButtonItem(type: ContextMenuButtonType.paste, onPressed: _pasteFromClipboard)],
+          ),
+        ),
+      ];
+    }
     if (geometry == null) return const [];
 
     final controls = _handleControls;
@@ -821,9 +832,6 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     final topLeft = anchor - controls.getHandleAnchor(type, geometry.lineHeight);
     final padding = Offset((touchWidth - size.width) / 2, (touchHeight - size.height) / 2);
 
-    // Keep the whole touch box inside the pane: the start handle is drawn to the
-    // left of the selection, so it would otherwise fall outside the stack (and
-    // outside hit testing) for anything selected at the start of a line.
     final left = (topLeft.dx - padding.dx).clamp(0.0, math.max(0.0, geometry.viewportWidth - touchWidth)).toDouble();
     final top = (topLeft.dy - padding.dy).clamp(0.0, math.max(0.0, geometry.viewportHeight - touchHeight)).toDouble();
 
@@ -973,11 +981,24 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
   }
 
   Future<void> _pasteFromClipboard() async {
+    _dismissPasteMenu();
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     if (text == null || text.isEmpty) return;
     _xtermController.clearSelection();
-    widget.controller.terminal.paste(text);
+    widget.controller.terminal.paste(text.replaceAll(RegExp(r'\r?\n'), '\r'));
+  }
+
+  void _dismissPasteMenu() {
+    if (_pasteMenuAnchor != null && mounted) setState(() => _pasteMenuAnchor = null);
+  }
+
+  void _showPasteMenuIfNothingSelected(Offset globalPosition) {
+    if (!mounted || _xtermController.selection != null) return;
+    final stack = _linkAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    if (stack == null || !stack.hasSize) return;
+    HapticFeedback.mediumImpact();
+    setState(() => _pasteMenuAnchor = stack.globalToLocal(globalPosition));
   }
 
   void _selectAll() {
@@ -991,13 +1012,29 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
   }
 
   void _handlePointerDown(PointerDownEvent event) {
+    _dismissPasteMenu();
+    final secondPointer = _longPressTimer?.isActive ?? false;
+    _longPressTimer?.cancel();
+    if (!secondPointer) {
+      final position = event.position;
+      _longPressTimer = Timer(
+        kLongPressTimeout + const Duration(milliseconds: 20),
+        () => _showPasteMenuIfNothingSelected(position),
+      );
+    }
     _pointerDownPosition = event.position;
     _pointerDownTime = DateTime.now();
     _keyboardWasOpenOnDown = _viewKey.currentState?.hasInputConnection ?? false;
     _pendingLink = _linkAt(event.position);
   }
 
+  void _handlePointerMove(PointerMoveEvent event) {
+    final downPosition = _pointerDownPosition;
+    if (downPosition != null && (event.position - downPosition).distance > kTouchSlop) _longPressTimer?.cancel();
+  }
+
   void _handlePointerUp(PointerUpEvent event) {
+    _longPressTimer?.cancel();
     final downPosition = _pointerDownPosition;
     final downTime = _pointerDownTime;
     final link = _pendingLink;
