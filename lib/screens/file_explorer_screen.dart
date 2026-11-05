@@ -975,7 +975,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
           crossAxisCount: 3,
           mainAxisSpacing: 4,
           crossAxisSpacing: 4,
-          childAspectRatio: 0.8,
+          childAspectRatio: 0.9,
         ),
         itemCount: entries.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
@@ -2623,8 +2623,9 @@ class _FileEntryGrid extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        color: selected ? palette.googleBlue.withValues(alpha: 0.12) : null,
+        color: selected ? palette.googleBlue.withValues(alpha: 0.12) : Colors.transparent,
         child: Stack(
+          fit: StackFit.expand,
           children: [
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
