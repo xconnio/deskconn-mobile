@@ -7,6 +7,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.da
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart' show saveToDevice;
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
@@ -530,7 +531,7 @@ class _IconTile extends StatelessWidget {
                 ? const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2))
                 : Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 6),
-            Text(label, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+            Text(label, style: DeskconnText.micro, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -299,10 +300,7 @@ class _DockIconButton extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(color: const Color(0xFFF97316), borderRadius: BorderRadius.circular(8)),
-                      child: Text(
-                        '$badgeCount',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                      ),
+                      child: Text('$badgeCount', style: DeskconnText.microStrong.copyWith(color: Colors.white)),
                     ),
                   ),
               ],
@@ -432,11 +430,11 @@ class _MachineStatusBadge extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: machineName,
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: DeskconnText.captionStrong.copyWith(color: Colors.white),
                       ),
                       TextSpan(
                         text: ' (${statusLabel.toLowerCase()})',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                        style: DeskconnText.caption.copyWith(color: Colors.white.withValues(alpha: 0.7)),
                       ),
                     ],
                   ),

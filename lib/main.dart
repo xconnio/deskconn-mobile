@@ -19,6 +19,7 @@ import 'package:deskconn_mobile_app/screens/share_upload_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
 import 'package:deskconn_mobile_app/theme/app_theme.dart';
 import 'package:deskconn_mobile_app/theme/system_ui.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/theme/typography.dart';
 import 'package:deskconn_mobile_app/widgets/exit_guard.dart';
 import 'package:deskconn_mobile_app/widgets/logo.dart';
@@ -267,7 +268,7 @@ class _ReconnectingBanner extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Reconnecting…',
-                        style: TextStyle(color: colorScheme.onSecondaryContainer, fontSize: 13),
+                        style: DeskconnText.label.copyWith(color: colorScheme.onSecondaryContainer),
                       ),
                     ),
                     TextButton(

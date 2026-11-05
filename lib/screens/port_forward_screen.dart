@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:deskconn_mobile_app/core/port_forward/port_forward_controller.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/widgets/app_snack_bar.dart';
 
 class PortForwardScreen extends StatelessWidget {
@@ -146,7 +147,7 @@ class _PortForwardViewState extends State<PortForwardView> {
                     Expanded(
                       child: Text(
                         'This desktop is on a routed connection. Port forwarding needs a direct (P2P) connection.',
-                        style: TextStyle(fontSize: 12, color: palette.muted),
+                        style: DeskconnText.caption.copyWith(color: palette.muted),
                       ),
                     ),
                   ],
@@ -176,11 +177,11 @@ class _PortForwardViewState extends State<PortForwardView> {
                             ),
                             title: Text(
                               _summary(rule),
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: palette.heading),
+                              style: DeskconnText.bodyStrong.copyWith(color: palette.heading),
                             ),
                             subtitle: Text(
                               _statusLabel(rule),
-                              style: TextStyle(fontSize: 12, color: _statusColor(rule, palette)),
+                              style: DeskconnText.caption.copyWith(color: _statusColor(rule, palette)),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -228,15 +229,12 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(Icons.swap_horiz, size: 40, color: palette.subtle),
             const SizedBox(height: 12),
-            Text(
-              'No forwards yet',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: palette.heading),
-            ),
+            Text('No forwards yet', style: DeskconnText.subtitle.copyWith(color: palette.heading)),
             const SizedBox(height: 6),
             Text(
               'Reach a port on your desktop from this device, or expose a port of this device on the desktop.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: palette.subtle),
+              style: DeskconnText.caption.copyWith(color: palette.subtle),
             ),
           ],
         ),
@@ -315,7 +313,7 @@ class _AddRuleDialogState extends State<_AddRuleDialog> {
               onSelectionChanged: (selection) => setState(() => _direction = selection.first),
             ),
             const SizedBox(height: 8),
-            Text(hint, style: TextStyle(fontSize: 12, color: palette.subtle)),
+            Text(hint, style: DeskconnText.caption.copyWith(color: palette.subtle)),
             const SizedBox(height: 12),
             TextFormField(
               controller: _localController,

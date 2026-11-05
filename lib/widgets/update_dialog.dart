@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/update/update_service.dart';
+import '../theme/type_scale.dart';
 
 class UpdateDialog extends StatefulWidget {
   final Map<String, dynamic> release;
@@ -118,7 +119,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.3)),
                 ),
-                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                child: Text(_error!, style: DeskconnText.label.copyWith(color: theme.colorScheme.error)),
               ),
               const SizedBox(height: 16),
             ],

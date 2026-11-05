@@ -1,3 +1,4 @@
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -116,7 +117,7 @@ class _KeyButtonState extends State<_KeyButton> {
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(color: _bgColor, borderRadius: BorderRadius.circular(6)),
         child: Center(
-          child: Text(widget.label, style: TextStyle(color: _textColor, fontSize: 13)),
+          child: Text(widget.label, style: DeskconnText.label.copyWith(color: _textColor)),
         ),
       ),
     );

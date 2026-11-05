@@ -12,6 +12,7 @@ import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/screens/desktop_details_screen.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -262,8 +263,7 @@ class _MachineGridState extends State<MachineGrid> {
                                 Text(
                                   'No desktop attached yet',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 18,
+                                  style: DeskconnText.titleSmall.copyWith(
                                     fontWeight: FontWeight.w500,
                                     color: widget.overlay ? Colors.white70 : Theme.of(context).hintColor,
                                   ),
@@ -392,11 +392,7 @@ class _MachineCard extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: overlay ? Colors.white : colorScheme.onSurface,
-                ),
+                style: DeskconnText.labelStrong.copyWith(color: overlay ? Colors.white : colorScheme.onSurface),
               ),
             ),
           ],
