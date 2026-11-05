@@ -47,6 +47,7 @@ const String _prefKeyLauncherOrder = 'launcher_order';
 class DesktopPageHandle {
   VoidCallback? openRecents;
   VoidCallback? openMachines;
+  VoidCallback? openSettings;
   final ValueNotifier<bool> appOpen = ValueNotifier(false);
   final ValueNotifier<DesktopConnectionStatus> status = ValueNotifier(DesktopConnectionStatus.checking);
 
@@ -93,6 +94,7 @@ class _MachinePagerState extends State<MachinePager> {
     for (final handle in _handles) {
       handle.appOpen.addListener(_refresh);
       handle.status.addListener(_refresh);
+      handle.openSettings = () => setState(() => _showSettings = true);
     }
     _controller = PageController(initialPage: _page);
   }
@@ -347,7 +349,12 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
   }
 
   Future<void> _openMachines() async {
-    await switchMachine(context, currentRealm: _realm);
+    await switchMachine(
+      context,
+      currentRealm: _realm,
+      bottomBar: (routeContext) =>
+          _overlayNavBar(routeContext, machinesSelected: true, onApps: () => Navigator.pop(routeContext)),
+    );
     if (mounted) unawaited(_probeDesktopConnection());
   }
 
@@ -607,6 +614,31 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       (_connectionStatus == DesktopConnectionStatus.routed || _connectionStatus == DesktopConnectionStatus.p2p) &&
       !_openingTerminal;
 
+  void _openSettings(BuildContext context) {
+    final openSettings = widget.handle?.openSettings;
+    if (openSettings != null) {
+      openSettings();
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
+
+  Widget _overlayNavBar(BuildContext routeContext, {required VoidCallback onApps, bool machinesSelected = false}) {
+    return _DesktopNavBar(
+      onWallpaper: true,
+      machinesSelected: machinesSelected,
+      onMachineTap: () {
+        Navigator.pop(routeContext);
+        if (!machinesSelected) unawaited(_openMachines());
+      },
+      onWindowsTap: onApps,
+      onSettingsTap: () {
+        Navigator.pop(routeContext);
+        _openSettings(context);
+      },
+    );
+  }
+
   void _openRecents(BuildContext context) {
     final active = _activeMobileApp;
     if (active != null) _captureSnapshot(active.id);
@@ -617,42 +649,54 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
         barrierColor: Colors.black54,
         transitionDuration: const Duration(milliseconds: 250),
         reverseTransitionDuration: const Duration(milliseconds: 200),
-        pageBuilder: (routeContext, _, _) => BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: ListenableBuilder(
-            listenable: _windowManager,
-            builder: (_, _) {
-              final windows = _windowManager.windows.where((w) => _appNavigators.containsKey(w.id)).toList()
-                ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
-              return RecentsView(
-                apps: [
-                  for (final w in windows)
-                    RecentApp(
-                      id: w.id,
-                      title: w.title,
-                      icon: w.icon,
-                      iconColor: w.iconColor,
-                      snapshot: _appSnapshots[w.id],
-                    ),
-                ],
-                onOpen: (id) {
-                  Navigator.pop(routeContext);
-                  _showMobileApp(id);
-                },
-                onClose: (id) {
-                  _closeMobileApp(id);
-                  if (_appNavigators.isEmpty) Navigator.pop(routeContext);
-                },
-                onHome: () {
-                  Navigator.pop(routeContext);
-                  final active = _activeMobileApp;
-                  if (active != null) _minimizeMobileApp(active.id);
-                },
-              );
+        pageBuilder: (routeContext, animation, _) => overlayWithFixedBar(
+          routeContext,
+          animation,
+          bottomBar: (_) => _overlayNavBar(
+            routeContext,
+            onApps: () {
+              Navigator.pop(routeContext);
+              final active = _activeMobileApp;
+              if (active != null) _minimizeMobileApp(active.id);
             },
           ),
+          content: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: ListenableBuilder(
+              listenable: _windowManager,
+              builder: (_, _) {
+                final windows = _windowManager.windows.where((w) => _appNavigators.containsKey(w.id)).toList()
+                  ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+                return RecentsView(
+                  apps: [
+                    for (final w in windows)
+                      RecentApp(
+                        id: w.id,
+                        title: w.title,
+                        icon: w.icon,
+                        iconColor: w.iconColor,
+                        snapshot: _appSnapshots[w.id],
+                      ),
+                  ],
+                  onOpen: (id) {
+                    Navigator.pop(routeContext);
+                    _showMobileApp(id);
+                  },
+                  onClose: (id) {
+                    _closeMobileApp(id);
+                    if (_appNavigators.isEmpty) Navigator.pop(routeContext);
+                  },
+                  onHome: () {
+                    Navigator.pop(routeContext);
+                    final active = _activeMobileApp;
+                    if (active != null) _minimizeMobileApp(active.id);
+                  },
+                );
+              },
+            ),
+          ),
         ),
-        transitionsBuilder: (_, animation, _, child) => fadeScaleTransition(animation, child),
+        transitionsBuilder: (_, _, _, child) => child,
       ),
     );
   }
@@ -688,8 +732,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
                     onWallpaper: true,
                     onMachineTap: _openMachines,
                     onWindowsTap: () => _openRecents(context),
-                    onSettingsTap: () =>
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                    onSettingsTap: () => _openSettings(context),
                   ),
             body: Stack(
               fit: StackFit.expand,
@@ -1594,6 +1637,7 @@ class _DefaultWallpaper extends StatelessWidget {
 class _DesktopNavBar extends StatefulWidget {
   final bool onWallpaper;
   final bool settingsSelected;
+  final bool machinesSelected;
   final VoidCallback onMachineTap;
   final VoidCallback onWindowsTap;
   final VoidCallback onSettingsTap;
@@ -1604,6 +1648,7 @@ class _DesktopNavBar extends StatefulWidget {
     required this.onSettingsTap,
     this.onWallpaper = false,
     this.settingsSelected = false,
+    this.machinesSelected = false,
   });
 
   @override
@@ -1645,15 +1690,16 @@ class _DesktopNavBarState extends State<_DesktopNavBar> {
                 _DesktopNavBarItem(
                   icon: Icons.desktop_windows_outlined,
                   label: 'Machines',
-                  color: unselectedColor,
+                  color: widget.machinesSelected ? selectedColor : unselectedColor,
                   onTap: widget.onMachineTap,
+                  selected: widget.machinesSelected,
                 ),
                 _DesktopNavBarItem(
                   icon: Icons.grid_view_rounded,
                   label: 'Apps',
-                  color: widget.settingsSelected ? unselectedColor : selectedColor,
+                  color: widget.settingsSelected || widget.machinesSelected ? unselectedColor : selectedColor,
                   onTap: widget.onWindowsTap,
-                  selected: !widget.settingsSelected,
+                  selected: !widget.settingsSelected && !widget.machinesSelected,
                 ),
                 _DesktopNavBarItem(
                   icon: Icons.settings_outlined,

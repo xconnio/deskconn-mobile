@@ -9,6 +9,26 @@ Widget fadeScaleTransition(Animation<double> animation, Widget child) {
   );
 }
 
+Widget overlayWithFixedBar(
+  BuildContext context,
+  Animation<double> animation, {
+  required Widget content,
+  WidgetBuilder? bottomBar,
+}) {
+  final animated = fadeScaleTransition(animation, content);
+  if (bottomBar == null) return animated;
+  return Column(
+    children: [
+      Expanded(
+        child: ClipRect(
+          child: MediaQuery.removePadding(context: context, removeBottom: true, child: animated),
+        ),
+      ),
+      bottomBar(context),
+    ],
+  );
+}
+
 class FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
   const FadeScalePageTransitionsBuilder();
 
