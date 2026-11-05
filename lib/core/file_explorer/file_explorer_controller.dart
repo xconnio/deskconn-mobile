@@ -42,20 +42,37 @@ class FileExplorerController {
     _encryption = await SessionEncryption.deskconnd(session).keys();
   }
 
+  Future<T> _withKeys<T>(Future<T> Function(Encryption encryption) run) async {
+    final crypto = SessionEncryption.deskconnd(session);
+    for (var attempt = 0; ; attempt++) {
+      final encryption = _encryption = await crypto.keys();
+      try {
+        return await run(encryption);
+      } catch (e) {
+        if (attempt == 0 && isKeysRejectedError(e)) {
+          crypto.invalidate(encryption);
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
   Future<FileBrowseResult> browse(String path, {String? cursor, int? limit}) async {
-    await ensureKeyExchanged();
     final payload = <String, dynamic>{
       'path': path,
       if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
       if (limit != null && limit > 0) 'limit': limit,
     };
-    final encryptedPayload = _encryption!.encrypt(utf8.encode(jsonEncode(payload)));
-    final res = await session
-        .call(DeskconnProcedures.deskconndFileBrowse, args: [encryptedPayload])
-        .timeout(DeskconnConfig.callTimeout);
-    if (res.args.isEmpty) throw Exception('Browse failed: empty response');
-    final decrypted = _encryption!.decrypt(_coerceBytes(res.args[0]));
-    return FileBrowseResult.fromJson(jsonDecode(utf8.decode(decrypted)) as Map<String, dynamic>);
+    return _withKeys((encryption) async {
+      final encryptedPayload = encryption.encrypt(utf8.encode(jsonEncode(payload)));
+      final res = await session
+          .call(DeskconnProcedures.deskconndFileBrowse, args: [encryptedPayload])
+          .timeout(DeskconnConfig.callTimeout);
+      if (res.args.isEmpty) throw Exception('Browse failed: empty response');
+      final decrypted = encryption.decrypt(_coerceBytes(res.args[0]));
+      return FileBrowseResult.fromJson(jsonDecode(utf8.decode(decrypted)) as Map<String, dynamic>);
+    });
   }
 
   /// media-app serves the index with its own keys, not deskconnd's.
@@ -197,11 +214,10 @@ class FileExplorerController {
   Future<void> copy(String srcPath, String destPath) async =>
       _callEncrypted(DeskconnProcedures.deskconndFileCopy, {'src': srcPath, 'dst': destPath});
 
-  Future<void> _callEncrypted(String procedure, Map<String, dynamic> payload) async {
-    await ensureKeyExchanged();
-    final encrypted = _encryption!.encrypt(utf8.encode(jsonEncode(payload)));
+  Future<void> _callEncrypted(String procedure, Map<String, dynamic> payload) => _withKeys((encryption) async {
+    final encrypted = encryption.encrypt(utf8.encode(jsonEncode(payload)));
     await session.call(procedure, args: [encrypted]).timeout(DeskconnConfig.callTimeout);
-  }
+  });
 
   Uint8List _coerceBytes(dynamic raw) {
     if (raw is Uint8List) return raw;
