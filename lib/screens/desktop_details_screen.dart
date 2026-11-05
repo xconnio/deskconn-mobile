@@ -25,6 +25,7 @@ import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
 import 'package:deskconn_mobile_app/screens/resource_monitor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:deskconn_mobile_app/theme/page_transitions.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/widgets/app_dock.dart';
@@ -1449,7 +1450,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
 }
 
 class LauncherTile extends StatelessWidget {
-  static const _labelFontSize = 13.0;
   static const _labelLineHeight = 1.2;
 
   final IconData icon;
@@ -1497,19 +1497,13 @@ class LauncherTile extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           SizedBox(
-            height: MediaQuery.textScalerOf(context).scale(_labelFontSize) * _labelLineHeight,
+            height: MediaQuery.textScalerOf(context).scale(DeskconnText.label.fontSize!) * _labelLineHeight,
             child: Text(
               title,
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w500,
-                fontSize: _labelFontSize,
-                height: _labelLineHeight,
-                shadows: textShadows,
-              ),
+              style: DeskconnText.label.copyWith(color: textColor, height: _labelLineHeight, shadows: textShadows),
             ),
           ),
         ],
@@ -1536,9 +1530,8 @@ class _ConnectionStatusChip extends StatelessWidget {
       DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
     };
     final textColor = onWallpaper ? Colors.white : colorScheme.onSurface;
-    final statusStyle = TextStyle(
+    final statusStyle = DeskconnText.caption.copyWith(
       color: name.isEmpty ? textColor : textColor.withValues(alpha: 0.75),
-      fontSize: 12,
       fontWeight: name.isEmpty ? FontWeight.w600 : FontWeight.w400,
     );
 
@@ -1567,7 +1560,7 @@ class _ConnectionStatusChip extends StatelessWidget {
                     if (name.isNotEmpty)
                       TextSpan(
                         text: name,
-                        style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w600),
+                        style: DeskconnText.captionStrong.copyWith(color: textColor),
                       ),
                     TextSpan(text: name.isEmpty ? label : ' ($label)', style: statusStyle),
                   ],
@@ -1709,9 +1702,8 @@ class _DesktopNavBarItem extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   label,
-                  style: TextStyle(
+                  style: DeskconnText.caption.copyWith(
                     color: color,
-                    fontSize: 12,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),

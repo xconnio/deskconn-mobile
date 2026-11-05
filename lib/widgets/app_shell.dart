@@ -2,6 +2,7 @@ import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
@@ -132,19 +133,15 @@ class _AppSidebar extends StatelessWidget {
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
-                    child: Text(
-                      initial,
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                    ),
+                    child: Text(initial, style: DeskconnText.headline.copyWith(color: colorScheme.onSurface)),
                   ),
                   const SizedBox(height: 14),
-                  if (name.isNotEmpty)
-                    Text(
-                      name,
-                      style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.w600, fontSize: 15),
-                    ),
+                  if (name.isNotEmpty) Text(name, style: DeskconnText.subtitle.copyWith(color: colorScheme.onSurface)),
                   if (email.isNotEmpty)
-                    Text(email, style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.6), fontSize: 13)),
+                    Text(
+                      email,
+                      style: DeskconnText.label.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                    ),
                 ],
               ),
             ),

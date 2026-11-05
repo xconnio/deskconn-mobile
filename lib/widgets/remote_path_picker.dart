@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deskconn_mobile_app/core/file_explorer/models.dart';
 import 'package:deskconn_mobile_app/core/text_editor/editor_files.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 
 enum RemotePickMode { openFile, openFolder, saveAs }
 
@@ -143,12 +144,7 @@ class _RemotePathPickerState extends State<RemotePathPicker> {
               dense: true,
               leading: const Icon(Icons.arrow_upward),
               enabled: _parent != null && !_loading,
-              title: Text(
-                browse?.path ?? '…',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-              ),
+              title: Text(browse?.path ?? '…', maxLines: 1, overflow: TextOverflow.ellipsis, style: DeskconnText.mono),
               onTap: () => _load(_parent!),
             ),
           ),

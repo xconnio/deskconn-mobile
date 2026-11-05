@@ -1,5 +1,6 @@
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 
 class FloatingWindow extends StatelessWidget {
@@ -116,7 +117,7 @@ class FloatingWindow extends StatelessWidget {
                               entry.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: titleColor, fontSize: 13, fontWeight: FontWeight.w600),
+                              style: DeskconnText.labelStrong.copyWith(color: titleColor),
                             ),
                           ),
                           _TitleBarButton(icon: Icons.remove, onTap: () => manager.minimize(entry.id)),

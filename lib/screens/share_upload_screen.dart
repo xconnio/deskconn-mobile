@@ -10,6 +10,7 @@ import 'package:deskconn_mobile_app/core/share/share_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -384,7 +385,7 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
                 : '${files.length} files selected',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13),
+            style: DeskconnText.label,
           ),
           const SizedBox(height: 8),
           if (_uploading) LinearProgressIndicator(value: _fileProgress),

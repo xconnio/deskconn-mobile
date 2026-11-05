@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:deskconn_mobile_app/core/file_explorer/models.dart';
 import 'package:deskconn_mobile_app/core/text_editor/editor_files.dart';
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/widgets/remote_path_picker.dart';
 
 const kGitUntrackedColor = Color(0xFFF87171);
@@ -181,8 +182,7 @@ class _EditorFileTreeState extends State<EditorFileTree> {
                                   entry.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
+                                  style: DeskconnText.body.copyWith(
                                     color: color,
                                     fontWeight: active ? FontWeight.w600 : null,
                                   ),

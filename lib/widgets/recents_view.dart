@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 
 class RecentApp {
@@ -75,8 +76,8 @@ class _RecentsViewState extends State<RecentsView> {
         type: MaterialType.transparency,
         child: SafeArea(
           child: apps.isEmpty
-              ? const Center(
-                  child: Text('No recent apps', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              ? Center(
+                  child: Text('No recent apps', style: DeskconnText.subtitle.copyWith(color: Colors.white70)),
                 )
               : Column(
                   children: [
@@ -175,7 +176,7 @@ class _RecentCard extends StatelessWidget {
                     app.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: DeskconnText.bodyStrong.copyWith(color: Colors.white),
                   ),
                 ),
               ],
