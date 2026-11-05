@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 
@@ -77,7 +78,10 @@ class _RecentsViewState extends State<RecentsView> {
         child: SafeArea(
           child: apps.isEmpty
               ? Center(
-                  child: Text('No recent apps', style: DeskconnText.subtitle.copyWith(color: Colors.white70)),
+                  child: Text(
+                    'No recent apps',
+                    style: DeskconnText.subtitle.copyWith(color: DeskconnOverlay.foregroundMuted),
+                  ),
                 )
               : Column(
                   children: [
@@ -129,9 +133,14 @@ class _RecentsViewState extends State<RecentsView> {
                           height: 48,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1.5),
+                            border: Border.all(color: DeskconnOverlay.hairline, width: 1.5),
                           ),
-                          child: const Icon(Icons.home_outlined, size: 26, color: Colors.white, semanticLabel: 'Home'),
+                          child: const Icon(
+                            Icons.home_outlined,
+                            size: 26,
+                            color: DeskconnOverlay.foreground,
+                            semanticLabel: 'Home',
+                          ),
                         ),
                       ),
                     ),
@@ -168,7 +177,7 @@ class _RecentCard extends StatelessWidget {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(color: app.iconColor, borderRadius: BorderRadius.circular(7)),
-                  child: Icon(app.icon, size: 16, color: Colors.white),
+                  child: Icon(app.icon, size: 16, color: DeskconnOverlay.foreground),
                 ),
                 const SizedBox(width: 8),
                 Flexible(
@@ -176,7 +185,7 @@ class _RecentCard extends StatelessWidget {
                     app.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: DeskconnText.bodyStrong.copyWith(color: Colors.white),
+                    style: DeskconnText.bodyStrong.copyWith(color: DeskconnOverlay.foreground),
                   ),
                 ),
               ],

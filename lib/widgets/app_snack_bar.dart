@@ -1,4 +1,5 @@
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:flutter/material.dart';
 
 class AppSnackBar {
@@ -13,7 +14,7 @@ class AppSnackBar {
       context,
       message,
       backgroundColor: isDark ? palette.surfaceTint : palette.muted,
-      foregroundColor: isDark ? palette.text : Colors.white,
+      foregroundColor: isDark ? palette.text : DeskconnOverlay.foreground,
       icon: Icons.check_circle_outline,
     );
   }

@@ -12,6 +12,7 @@ import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/screens/desktop_details_screen.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -265,7 +266,9 @@ class _MachineGridState extends State<MachineGrid> {
                                   textAlign: TextAlign.center,
                                   style: DeskconnText.titleSmall.copyWith(
                                     fontWeight: FontWeight.w500,
-                                    color: widget.overlay ? Colors.white70 : Theme.of(context).hintColor,
+                                    color: widget.overlay
+                                        ? DeskconnOverlay.foregroundMuted
+                                        : Theme.of(context).hintColor,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -273,9 +276,9 @@ class _MachineGridState extends State<MachineGrid> {
                                   'Connected desktops will appear here',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: (widget.overlay ? Colors.white70 : Theme.of(context).hintColor).withValues(
-                                      alpha: 0.7,
-                                    ),
+                                    color:
+                                        (widget.overlay ? DeskconnOverlay.foregroundMuted : Theme.of(context).hintColor)
+                                            .withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -392,7 +395,9 @@ class _MachineCard extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: DeskconnText.labelStrong.copyWith(color: overlay ? Colors.white : colorScheme.onSurface),
+                style: DeskconnText.labelStrong.copyWith(
+                  color: overlay ? DeskconnOverlay.foreground : colorScheme.onSurface,
+                ),
               ),
             ),
           ],
@@ -431,7 +436,7 @@ class _StatusDot extends StatelessWidget {
             decoration: BoxDecoration(
               color: dotColor,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 4)],
+              boxShadow: [BoxShadow(color: DeskconnOverlay.dotShadow, blurRadius: 4)],
             ),
           ),
         ),
