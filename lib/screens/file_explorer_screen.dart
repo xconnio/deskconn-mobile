@@ -1933,10 +1933,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         Navigator.pop(context, _contentChanged);
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: DeskconnColors.darkBackground,
         appBar: AppBar(
           title: Text(_currentEntry.name, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
-          backgroundColor: const Color(0xFF1E1E1E),
+          backgroundColor: DeskconnColors.darkBackground,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
@@ -2004,7 +2004,7 @@ class _GalleryActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF1E1E1E),
+      color: DeskconnColors.darkBackground,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -2112,7 +2112,12 @@ class _PreviewBodyState extends State<_PreviewBody> {
   Color get _bgColor {
     final effectiveExt = widget.openAs ?? _ext;
     if (effectiveExt == 'pdf') return Colors.grey.shade200;
-    return Colors.black;
+    final isVisualMedia =
+        effectiveExt == 'image' ||
+        effectiveExt == 'video' ||
+        kImageExts.contains(effectiveExt) ||
+        kVideoExts.contains(effectiveExt);
+    return isVisualMedia ? Colors.black : DeskconnColors.darkBackground;
   }
 
   @override
