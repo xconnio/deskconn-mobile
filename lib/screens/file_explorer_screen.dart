@@ -12,6 +12,7 @@ import 'package:chewie/chewie.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
@@ -166,7 +167,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
       await _loadInitial();
     } catch (e) {
-      _reportLoadError(e.toString());
+      _reportLoadError(_fileErrorMessage(e, 'Could not connect to the desktop.'));
       _log('initialize failed error=$e');
     }
   }
@@ -291,7 +292,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         await _reconnect(path: path, category: category);
         return;
       }
-      _reportLoadError(errorStr);
+      _reportLoadError(_fileErrorMessage(e, 'Could not open this folder.'));
       _log('browse failed path=$path error=$e');
     }
   }
@@ -552,7 +553,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        _showErrorSnackBar('Share failed: $e');
+        _showErrorSnackBar(_fileErrorMessage(e, 'Could not share.'));
       }
     }
   }
@@ -918,7 +919,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Error: $_error'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(_error!, textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(onPressed: _reconnect, child: const Text('Reconnect')),
           ],
         ),
@@ -1157,7 +1162,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        _showErrorSnackBar('Download failed: $e');
+        _showErrorSnackBar(_fileErrorMessage(e, 'Could not download.'));
       }
     }
   }
@@ -1259,7 +1264,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     } catch (e) {
       if (mounted) {
         nav.pop();
-        _showErrorSnackBar('Upload failed: $e');
+        _showErrorSnackBar(_fileErrorMessage(e, 'Could not upload.'));
       }
     }
   }
@@ -1371,7 +1376,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                   await _controller!.rename(oldPath, newPath);
                   _loadPath(_currentBrowse!.path);
                 } catch (e) {
-                  _showErrorSnackBar('Rename failed: $e');
+                  _showErrorSnackBar(_fileErrorMessage(e, 'Could not rename.'));
                 }
               }
             },
@@ -1385,6 +1390,15 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
+}
+
+String _fileErrorMessage(Object error, String fallback) {
+  final raw = error.toString().toLowerCase();
+  if (raw.contains('permission denied')) return '$fallback Permission denied.';
+  if (raw.contains('no such file')) return '$fallback It no longer exists.';
+  if (raw.contains('file exists')) return '$fallback A file with that name already exists.';
+  if (raw.contains('no space left')) return '$fallback The desktop is out of disk space.';
+  return DeskconnErrorMapper.messageFor(error, fallback: fallback);
 }
 
 class _LoadMoreIndicator extends StatelessWidget {
@@ -1720,7 +1734,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(_fileErrorMessage(e, 'Could not share.')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {
@@ -1743,7 +1760,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(_fileErrorMessage(e, 'Could not download.')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {
@@ -1781,7 +1801,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       if (mounted) {
         setState(() => _isEditing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Edit failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(_fileErrorMessage(e, 'Could not open the editor.')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -1829,7 +1852,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Save failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+            SnackBar(
+              content: Text(_fileErrorMessage(e, 'Could not save.')),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
           );
         }
       }
@@ -1858,7 +1884,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(_fileErrorMessage(e, 'Could not save.')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -1886,7 +1915,10 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(_fileErrorMessage(e, 'Could not delete.')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -2356,7 +2388,7 @@ class _VideoPreviewState extends State<_VideoPreview> with WidgetsBindingObserve
       );
       setState(() => _ready = true);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = _fileErrorMessage(e, 'Could not play this video.'));
     }
   }
 
@@ -2381,7 +2413,7 @@ class _VideoPreviewState extends State<_VideoPreview> with WidgetsBindingObserve
   Widget build(BuildContext context) {
     if (_error != null) {
       return Center(
-        child: Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+        child: Text(_error!, style: const TextStyle(color: Colors.red)),
       );
     }
     if (!_ready) {
@@ -2463,7 +2495,7 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
       await _player.play(BytesSource(bytes));
       if (mounted) setState(() => _loaded = true);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = _fileErrorMessage(e, 'Could not play this audio.'));
     }
   }
 
@@ -2492,7 +2524,7 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
   Widget build(BuildContext context) {
     if (_error != null) {
       return Center(
-        child: Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+        child: Text(_error!, style: const TextStyle(color: Colors.red)),
       );
     }
     if (!_loaded) {
