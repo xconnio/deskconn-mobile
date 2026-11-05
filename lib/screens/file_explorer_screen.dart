@@ -588,7 +588,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                 path: _currentBrowse!.path,
                 homePath: _currentBrowse!.homePath,
                 onPathTap: _loadPath,
-                onUpTap: _goUp,
+                onUpTap: isAtRoot ? null : _goUp,
               ),
             if (_clipboardEntries.isNotEmpty) _buildClipboardBanner(),
             Expanded(child: _buildBody()),
@@ -1542,7 +1542,7 @@ class _Breadcrumbs extends StatelessWidget {
   final String path;
   final String homePath;
   final Function(String) onPathTap;
-  final VoidCallback onUpTap;
+  final VoidCallback? onUpTap;
 
   const _Breadcrumbs({required this.path, required this.homePath, required this.onPathTap, required this.onUpTap});
 
