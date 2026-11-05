@@ -1,5 +1,6 @@
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 
@@ -127,7 +128,7 @@ class FloatingWindow extends StatelessWidget {
                           ),
                           _TitleBarButton(
                             icon: Icons.close,
-                            hoverColor: Colors.redAccent,
+                            hoverColor: DeskconnOverlay.danger,
                             onTap: () => manager.close(entry.id),
                           ),
                         ],

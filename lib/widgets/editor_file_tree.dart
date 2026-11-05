@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:deskconn_mobile_app/core/file_explorer/models.dart';
 import 'package:deskconn_mobile_app/core/text_editor/editor_files.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/widgets/remote_path_picker.dart';
 
-const kGitUntrackedColor = Color(0xFFF87171);
-const kGitModifiedColor = Color(0xFF7FB4E0);
-const kGitIgnoredColor = Color(0xFFF59E0B);
-
 Color? gitStatusColor(GitFileStatus? status) => switch (status) {
-  GitFileStatus.untracked || GitFileStatus.added => kGitUntrackedColor,
-  GitFileStatus.modified => kGitModifiedColor,
-  GitFileStatus.ignored => kGitIgnoredColor,
+  GitFileStatus.untracked || GitFileStatus.added => DeskconnGit.untracked,
+  GitFileStatus.modified => DeskconnGit.modified,
+  GitFileStatus.ignored => DeskconnGit.ignored,
   null => null,
 };
 

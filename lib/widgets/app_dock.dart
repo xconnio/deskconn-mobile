@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:deskconn_mobile_app/core/window_manager/desktop_window.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -192,9 +193,9 @@ class _AppDockState extends State<AppDock> {
             constraints: const BoxConstraints(minHeight: 72),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color.fromRGBO(20, 20, 22, 0.75),
+              color: DeskconnOverlay.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              border: Border.all(color: DeskconnOverlay.border),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -217,7 +218,7 @@ class _AppDockState extends State<AppDock> {
                     Container(
                       width: 1,
                       height: 32,
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: DeskconnOverlay.divider,
                       margin: const EdgeInsets.symmetric(horizontal: 6),
                     ),
                     SizedBox(
@@ -292,15 +293,18 @@ class _DockIconButton extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(icon, color: Colors.white, size: 22),
+                Icon(icon, color: DeskconnOverlay.foreground, size: 22),
                 if ((badgeCount ?? 0) > 0)
                   Positioned(
                     right: -4,
                     top: -4,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(color: const Color(0xFFF97316), borderRadius: BorderRadius.circular(8)),
-                      child: Text('$badgeCount', style: DeskconnText.microStrong.copyWith(color: Colors.white)),
+                      decoration: BoxDecoration(color: DeskconnOverlay.badge, borderRadius: BorderRadius.circular(8)),
+                      child: Text(
+                        '$badgeCount',
+                        style: DeskconnText.microStrong.copyWith(color: DeskconnOverlay.foreground),
+                      ),
                     ),
                   ),
               ],
@@ -354,11 +358,9 @@ class _AppIcon extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 2)),
-                    ],
+                    boxShadow: [BoxShadow(color: DeskconnOverlay.shadow, blurRadius: 6, offset: const Offset(0, 2))],
                   ),
-                  child: Icon(app.icon, color: Colors.white, size: 24),
+                  child: Icon(app.icon, color: DeskconnOverlay.foreground, size: 24),
                 ),
                 const SizedBox(height: 3),
                 SizedBox(
@@ -373,7 +375,7 @@ class _AppIcon extends StatelessWidget {
                           margin: const EdgeInsets.symmetric(horizontal: 1),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: hasMinimized ? Colors.white.withValues(alpha: 0.4) : Colors.white,
+                            color: hasMinimized ? DeskconnOverlay.foregroundFaint : DeskconnOverlay.foreground,
                           ),
                         ),
                     ],
@@ -411,9 +413,9 @@ class _MachineStatusBadge extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.35),
+            color: DeskconnOverlay.scrim,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(color: DeskconnOverlay.divider),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -430,11 +432,11 @@ class _MachineStatusBadge extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: machineName,
-                        style: DeskconnText.captionStrong.copyWith(color: Colors.white),
+                        style: DeskconnText.captionStrong.copyWith(color: DeskconnOverlay.foreground),
                       ),
                       TextSpan(
                         text: ' (${statusLabel.toLowerCase()})',
-                        style: DeskconnText.caption.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+                        style: DeskconnText.caption.copyWith(color: DeskconnOverlay.foregroundMuted),
                       ),
                     ],
                   ),

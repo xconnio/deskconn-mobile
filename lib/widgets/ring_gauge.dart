@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:flutter/material.dart';
 
 class RingGauge extends StatelessWidget {
@@ -47,7 +48,7 @@ class RingGauge extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 label,
-                style: TextStyle(fontSize: math.max(size * 0.075, 9), color: Colors.grey),
+                style: TextStyle(fontSize: math.max(size * 0.075, 9), color: DeskconnPalette.of(context).subtle),
               ),
             ],
           ),

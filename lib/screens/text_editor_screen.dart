@@ -10,6 +10,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.da
 import 'package:deskconn_mobile_app/core/text_editor/editor_files.dart';
 import 'package:deskconn_mobile_app/core/text_editor/line_diff.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/widgets/editor_file_tree.dart';
 import 'package:deskconn_mobile_app/widgets/remote_path_picker.dart';
 
@@ -847,7 +848,7 @@ class _ChangeBarsPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (changes.isEmpty) return;
     final added = Paint()..color = _added;
-    final modified = Paint()..color = kGitModifiedColor;
+    final modified = Paint()..color = DeskconnGit.modified;
     for (final paragraph in paragraphs) {
       final change = changes[paragraph.index];
       if (change == null) continue;
