@@ -54,6 +54,8 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String? _error;
+  String? _resumePath;
+  String? _resumeCategory;
   bool _showHidden = false;
   late String? _currentCategory = widget.category;
   final ScrollController _scrollController = ScrollController();
@@ -133,12 +135,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     }
 
     if (!ConnectivityService().hasConnection) {
-      if (mounted) {
-        setState(() {
-          _error = 'No internet connection';
-          _isLoading = false;
-        });
-      }
+      _reportLoadError('No internet connection');
       return;
     }
 
@@ -169,17 +166,34 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
       await _loadInitial();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
+      _reportLoadError(e.toString());
       _log('initialize failed error=$e');
     }
   }
 
+  void _reportLoadError(String message) {
+    if (!mounted) return;
+    if (_currentBrowse != null) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar(message);
+      return;
+    }
+    setState(() {
+      _error = message;
+      _isLoading = false;
+    });
+  }
+
   Future<void> _loadInitial() async {
+    final resumePath = _resumePath;
+    final resumeCategory = _resumeCategory;
+    _resumePath = null;
+    _resumeCategory = null;
+    if (resumePath != null) {
+      await _loadPath(resumePath, category: resumeCategory);
+      return;
+    }
+
     if (widget.category != null) {
       await _loadPath('', category: widget.category);
     } else {
@@ -194,8 +208,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     }
   }
 
-  Future<void> _reconnect() async {
+  Future<void> _reconnect({String? path, String? category}) async {
     _log('reconnect');
+    final current = _currentBrowse;
+    if (path != null) {
+      _resumePath = path;
+      _resumeCategory = category;
+    } else if (current != null) {
+      _resumePath = _currentCategory != null ? '' : current.path;
+      _resumeCategory = _currentCategory;
+    }
     await DesktopConnectionManager().release(widget.config.realm);
     _controller = null;
     await _initialize();
@@ -260,22 +282,16 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       if (!mounted) return;
       final errorStr = e.toString();
       if (errorStr.contains('wamp.error.no_such_procedure') && category != null) {
-        setState(() {
-          _error = 'The remote desktop agent needs to be updated to support $category view.';
-          _isLoading = false;
-        });
+        _reportLoadError('The remote desktop agent needs to be updated to support $category view.');
         return;
       }
       final sessionAlive = _controller?.session.isConnected() ?? false;
       if (!sessionAlive) {
         _log('session lost during browse path=$path error=$e');
-        await _reconnect();
+        await _reconnect(path: path, category: category);
         return;
       }
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      _reportLoadError(errorStr);
       _log('browse failed path=$path error=$e');
     }
   }
