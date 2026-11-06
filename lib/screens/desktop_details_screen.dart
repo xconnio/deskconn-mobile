@@ -24,6 +24,7 @@ import 'package:deskconn_mobile_app/screens/text_editor_screen.dart';
 import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
 import 'package:deskconn_mobile_app/screens/resource_monitor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/page_transitions.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
@@ -240,8 +241,10 @@ class _PageIndicator extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.35 + 0.65 * (1 - (page - i).abs().clamp(0.0, 1.0))),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 3)],
+                  color: DeskconnOverlay.foreground.withValues(
+                    alpha: 0.35 + 0.65 * (1 - (page - i).abs().clamp(0.0, 1.0)),
+                  ),
+                  boxShadow: [BoxShadow(color: DeskconnOverlay.dotShadow, blurRadius: 3)],
                 ),
               ),
           ],
@@ -646,7 +649,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: false,
-        barrierColor: Colors.black54,
+        barrierColor: DeskconnOverlay.barrier,
         transitionDuration: const Duration(milliseconds: 250),
         reverseTransitionDuration: const Duration(milliseconds: 200),
         pageBuilder: (routeContext, animation, _) => overlayWithFixedBar(
@@ -740,7 +743,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
                 wallpaper != null
                     ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
                     : const _DefaultWallpaper(),
-                if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
+                if (wallpaper != null) Container(color: DeskconnOverlay.scrimSoft),
                 SafeArea(
                   bottom: false,
                   child: Column(
@@ -830,7 +833,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
           wallpaper != null
               ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
               : const _DefaultWallpaper(),
-          if (wallpaper != null) Container(color: Colors.black.withValues(alpha: 0.25)),
+          if (wallpaper != null) Container(color: DeskconnOverlay.scrimSoft),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1415,7 +1418,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
         icon: Icons.terminal,
         iconColor: DeskconnPalette.of(context).osDebian,
         builder: (_, close) => Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: DeskconnOverlay.videoBackground,
           body: SafeArea(
             bottom: false,
             child: TerminalTabsView(
@@ -1515,9 +1518,9 @@ class LauncherTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = onWallpaper
-        ? (enabled ? Colors.white : Colors.white54)
+        ? (enabled ? DeskconnOverlay.foreground : DeskconnOverlay.foregroundSubtle)
         : (enabled ? Theme.of(context).colorScheme.onSurface : Theme.of(context).disabledColor);
-    final textShadows = onWallpaper ? [Shadow(color: Colors.black.withValues(alpha: 0.7), blurRadius: 6)] : null;
+    final textShadows = onWallpaper ? [Shadow(color: DeskconnOverlay.textShadow, blurRadius: 6)] : null;
     final effectiveBadgeColor = enabled ? badgeColor : badgeColor.withValues(alpha: 0.4);
 
     return InkWell(
@@ -1533,10 +1536,10 @@ class LauncherTile extends StatelessWidget {
               color: effectiveBadgeColor,
               borderRadius: BorderRadius.circular(14),
               boxShadow: onWallpaper
-                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 2))]
+                  ? [BoxShadow(color: DeskconnOverlay.shadow, blurRadius: 6, offset: const Offset(0, 2))]
                   : null,
             ),
-            child: Icon(icon, size: 26, color: Colors.white),
+            child: Icon(icon, size: 26, color: DeskconnOverlay.foreground),
           ),
           const SizedBox(height: 4),
           SizedBox(
@@ -1572,7 +1575,7 @@ class _ConnectionStatusChip extends StatelessWidget {
       DesktopConnectionStatus.routed => (palette.statusRouted, 'Routed'),
       DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
     };
-    final textColor = onWallpaper ? Colors.white : colorScheme.onSurface;
+    final textColor = onWallpaper ? DeskconnOverlay.foreground : colorScheme.onSurface;
     final statusStyle = DeskconnText.caption.copyWith(
       color: name.isEmpty ? textColor : textColor.withValues(alpha: 0.75),
       fontWeight: name.isEmpty ? FontWeight.w600 : FontWeight.w400,
@@ -1584,9 +1587,9 @@ class _ConnectionStatusChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: onWallpaper ? Colors.black.withValues(alpha: 0.45) : colorScheme.surfaceContainerHighest,
+            color: onWallpaper ? DeskconnOverlay.scrimMedium : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: onWallpaper ? Colors.white.withValues(alpha: 0.16) : colorScheme.outlineVariant),
+            border: Border.all(color: onWallpaper ? DeskconnOverlay.outline : colorScheme.outlineVariant),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1627,7 +1630,7 @@ class _DefaultWallpaper extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+          colors: [DeskconnOverlay.wallpaperStart, DeskconnOverlay.wallpaperMid, DeskconnOverlay.wallpaperEnd],
         ),
       ),
     );
@@ -1661,11 +1664,11 @@ class _DesktopNavBarState extends State<_DesktopNavBar> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final background = widget.onWallpaper ? Colors.black.withValues(alpha: 0.86) : colorScheme.surface;
-    final dividerColor = widget.onWallpaper ? Colors.white.withValues(alpha: 0.14) : colorScheme.outlineVariant;
-    final selectedColor = widget.onWallpaper ? Colors.white : colorScheme.primary;
+    final background = widget.onWallpaper ? DeskconnOverlay.scrimHeavy : colorScheme.surface;
+    final dividerColor = widget.onWallpaper ? DeskconnOverlay.divider : colorScheme.outlineVariant;
+    final selectedColor = widget.onWallpaper ? DeskconnOverlay.foreground : colorScheme.primary;
     final unselectedColor = widget.onWallpaper
-        ? Colors.white.withValues(alpha: 0.6)
+        ? DeskconnOverlay.hairline
         : colorScheme.onSurface.withValues(alpha: 0.55);
 
     return GestureDetector(

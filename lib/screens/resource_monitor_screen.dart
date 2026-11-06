@@ -10,16 +10,17 @@ import 'package:deskconn_mobile_app/core/resource_monitor/resource_monitor_contr
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/metric_colors.dart';
 import 'package:deskconn_mobile_app/widgets/ring_gauge.dart';
 import 'package:deskconn_mobile_app/widgets/sparkline_chart.dart';
 
 const _pollInterval = Duration(seconds: 2);
 const _historyLength = 30;
 
-const _cpuColor = Color(0xFF3B82F6);
-const _memColor = Color(0xFF2563EB);
-const _diskColor = Color(0xFF7C3AED);
-const _netColor = Color(0xFF0891B2);
+const _cpuColor = DeskconnMetrics.cpu;
+const _memColor = DeskconnMetrics.memory;
+const _diskColor = DeskconnMetrics.disk;
+const _netColor = DeskconnMetrics.network;
 
 String _formatBytes(double bytes) {
   const unit = 1000;
@@ -32,9 +33,9 @@ String _formatBytes(double bytes) {
 String _formatBytesPs(double bytesPerSec) => '${_formatBytes(bytesPerSec)}/s';
 
 Color _cpuColorFor(double pct) {
-  if (pct < 50) return const Color(0xFF22C55E);
-  if (pct < 80) return const Color(0xFFF59E0B);
-  return const Color(0xFFEF4444);
+  if (pct < 50) return DeskconnMetrics.ok;
+  if (pct < 80) return DeskconnMetrics.warn;
+  return DeskconnMetrics.critical;
 }
 
 bool _isMissingProcedureError(Object error) => error.toString().toLowerCase().contains('wamp.error.no_such_procedure');
@@ -349,8 +350,8 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
               },
             ),
             ListTile(
-              leading: const Icon(Icons.dangerous_outlined, color: Colors.red),
-              title: const Text('Kill', style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.dangerous_outlined, color: DeskconnMetrics.critical),
+              title: const Text('Kill', style: TextStyle(color: DeskconnMetrics.critical)),
               onTap: () {
                 Navigator.pop(sheetContext);
                 unawaited(_signalPids(pids, 'kill'));
@@ -379,7 +380,7 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
                         width: double.infinity,
                         color: _reconnecting
                             ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
-                            : Colors.red.withValues(alpha: 0.08),
+                            : DeskconnMetrics.critical.withValues(alpha: 0.08),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         child: Row(
                           children: [
@@ -393,13 +394,15 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
                                 ),
                               )
                             else
-                              const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                              const Icon(Icons.error_outline, color: DeskconnMetrics.critical, size: 18),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 _actionError!,
                                 style: TextStyle(
-                                  color: _reconnecting ? Theme.of(context).colorScheme.primary : Colors.red,
+                                  color: _reconnecting
+                                      ? Theme.of(context).colorScheme.primary
+                                      : DeskconnMetrics.critical,
                                   fontSize: 12,
                                 ),
                               ),
@@ -501,7 +504,10 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(_formatBytes(app.memRss), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-              Text('${app.cpuPercent.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(
+                '${app.cpuPercent.toStringAsFixed(1)}%',
+                style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
+              ),
             ],
           ),
         );
@@ -552,7 +558,7 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
                           ),
                           Text(
                             '${process.cpuPercent.toStringAsFixed(1)}%',
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
                           ),
                         ],
                       ),
@@ -587,7 +593,7 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               info.cpuModel,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: DeskconnPalette.of(context).subtle),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -600,7 +606,10 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
         ),
         const SizedBox(height: 12),
         if (_showLogicalCpus) ...[
-          Text('${info.cpuPhysical}P / ${info.cpuLogical}L', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(
+            '${info.cpuPhysical}P / ${info.cpuLogical}L',
+            style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
+          ),
           const SizedBox(height: 8),
           ...List.generate(info.cpuUsages.length, (i) {
             final usage = info.cpuUsages[i];
@@ -618,7 +627,7 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
                       child: LinearProgressIndicator(
                         value: (usage / 100).clamp(0, 1).toDouble(),
                         minHeight: 12,
-                        backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                        backgroundColor: DeskconnPalette.of(context).subtle.withValues(alpha: 0.2),
                         valueColor: AlwaysStoppedAnimation(_cpuColorFor(usage)),
                       ),
                     ),
@@ -687,11 +696,11 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
           children: [
             Text(
               'Available: ${_formatBytes(info.ramAvailable)}',
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
             ),
             Text(
               'Buff/Cache: ${_formatBytes(info.ramBuffCache)}',
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
             ),
           ],
         ),
@@ -699,9 +708,9 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
           const SizedBox(height: 16),
           Row(
             children: [
-              const Text(
+              Text(
                 'Swap',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: DeskconnPalette.of(context).subtle),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -710,15 +719,15 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
                   child: LinearProgressIndicator(
                     value: (info.swapUsedPercent / 100).clamp(0, 1).toDouble(),
                     minHeight: 5,
-                    backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF8B5CF6)),
+                    backgroundColor: DeskconnPalette.of(context).subtle.withValues(alpha: 0.2),
+                    valueColor: const AlwaysStoppedAnimation(DeskconnMetrics.highlight),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 '${_formatBytes(info.swapUsed)} / ${_formatBytes(info.swapTotal)}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
               ),
             ],
           ),
@@ -760,10 +769,13 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Free: ${_formatBytes(info.diskFree)}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(
+              'Free: ${_formatBytes(info.diskFree)}',
+              style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
+            ),
             Text(
               'Used: ${info.diskUsedPercent.toStringAsFixed(1)}%',
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle),
             ),
           ],
         ),
@@ -811,10 +823,14 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.arrow_downward, size: 14, color: Color(0xFF059669)),
+                        const Icon(Icons.arrow_downward, size: 14, color: DeskconnMetrics.inbound),
                         Text(
                           _formatBytesPs(iface.bytesRecvPs),
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF059669), fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: DeskconnMetrics.inbound,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -857,7 +873,7 @@ class _GraphCard extends StatelessWidget {
           if (label != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text(label!, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              child: Text(label!, style: TextStyle(fontSize: 11, color: DeskconnPalette.of(context).subtle)),
             ),
         ],
       ),
@@ -899,7 +915,7 @@ class _EmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text(message, style: const TextStyle(color: Colors.grey)),
+      child: Text(message, style: TextStyle(color: DeskconnPalette.of(context).subtle)),
     );
   }
 }

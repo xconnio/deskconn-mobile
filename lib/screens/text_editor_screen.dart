@@ -10,19 +10,20 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.da
 import 'package:deskconn_mobile_app/core/text_editor/editor_files.dart';
 import 'package:deskconn_mobile_app/core/text_editor/line_diff.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
+import 'package:deskconn_mobile_app/theme/editor_colors.dart';
 import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/widgets/editor_file_tree.dart';
 import 'package:deskconn_mobile_app/widgets/remote_path_picker.dart';
 
-const _bg = Color(0xFF23241F);
-const _bar = Color(0xFF1B1C18);
-const _border = Color(0xFF34352F);
-const _text = Color(0xFFF8F8F2);
-const _muted = Color(0xFF8F908A);
-const _accent = Color(0xFF66D9EF);
-const _dirty = Color(0xFFF59E0B);
-const _added = Color(0xFF7EC699);
-const _removed = Color(0xFFF07178);
+const _bg = DeskconnEditor.background;
+const _bar = DeskconnEditor.bar;
+const _border = DeskconnEditor.border;
+const _text = DeskconnEditor.text;
+const _muted = DeskconnEditor.muted;
+const _accent = DeskconnEditor.accent;
+const _dirty = DeskconnEditor.dirty;
+const _added = DeskconnEditor.added;
+const _removed = DeskconnEditor.removed;
 const _maxHighlightSize = 256 * 1024;
 const _reviewContext = 3;
 
@@ -767,7 +768,7 @@ class _EditorView extends StatelessWidget {
         backgroundColor: _bg,
         cursorColor: _accent,
         selectionColor: _accent.withValues(alpha: 0.3),
-        cursorLineColor: Colors.white.withValues(alpha: 0.04),
+        cursorLineColor: DeskconnEditor.cursorLine,
         codeTheme: mode == null
             ? null
             : CodeHighlightTheme(
@@ -783,7 +784,7 @@ class _EditorView extends StatelessWidget {
           DefaultCodeLineNumber(
             controller: editingController,
             notifier: notifier,
-            textStyle: const TextStyle(color: Color(0xFF5E5F58), fontSize: 12, fontFamily: 'monospace'),
+            textStyle: const TextStyle(color: DeskconnEditor.lineNumber, fontSize: 12, fontFamily: 'monospace'),
             focusedTextStyle: const TextStyle(color: _muted, fontSize: 12, fontFamily: 'monospace'),
           ),
         ],
@@ -975,7 +976,7 @@ class _ReviewRow extends StatelessWidget {
       ReviewKind.removed => (_removed.withValues(alpha: 0.14), '−', _removed),
       ReviewKind.context => (Colors.transparent, ' ', _muted),
     };
-    const numberStyle = TextStyle(color: Color(0xFF5E5F58), fontSize: 11, fontFamily: 'monospace', height: 1.5);
+    const numberStyle = TextStyle(color: DeskconnEditor.lineNumber, fontSize: 11, fontFamily: 'monospace', height: 1.5);
     return Container(
       color: background,
       padding: const EdgeInsets.only(right: 12),

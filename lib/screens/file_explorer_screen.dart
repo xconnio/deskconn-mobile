@@ -24,6 +24,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.da
 import 'package:deskconn_mobile_app/screens/image_editor_screen.dart';
 import 'package:deskconn_mobile_app/screens/text_editor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 
 class FileExplorerScreen extends StatefulWidget {
   final DesktopSessionLaunchConfig config;
@@ -826,11 +827,11 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.folder_shared, size: 48, color: Colors.white),
+                    Icon(Icons.folder_shared, size: 48, color: DeskconnOverlay.foreground),
                     SizedBox(height: 12),
                     Text(
                       'Files',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: DeskconnOverlay.foreground, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -1937,7 +1938,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         appBar: AppBar(
           title: Text(_currentEntry.name, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
           backgroundColor: DeskconnColors.darkBackground,
-          foregroundColor: Colors.white,
+          foregroundColor: DeskconnOverlay.foreground,
           elevation: 0,
         ),
         body: _entries.length > 1
@@ -2023,7 +2024,12 @@ class _GalleryActionBar extends StatelessWidget {
               isSaving
                   ? const _ActionBarButton(icon: Icons.download_outlined, label: 'Saving…', onTap: null, loading: true)
                   : _ActionBarButton(icon: Icons.download_outlined, label: 'Download', onTap: onDownload),
-              _ActionBarButton(icon: Icons.delete_outline, label: 'Delete', onTap: onDelete, color: Colors.redAccent),
+              _ActionBarButton(
+                icon: Icons.delete_outline,
+                label: 'Delete',
+                onTap: onDelete,
+                color: DeskconnOverlay.danger,
+              ),
             ],
           ),
         ),
@@ -2043,7 +2049,7 @@ class _ActionBarButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color = Colors.white,
+    this.color = DeskconnOverlay.foreground,
     this.loading = false,
   });
 
@@ -2060,7 +2066,7 @@ class _ActionBarButton extends StatelessWidget {
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: DeskconnOverlay.foregroundMuted),
                   )
                 : Icon(icon, color: color, size: 22),
             const SizedBox(height: 4),
@@ -2111,13 +2117,13 @@ class _PreviewBodyState extends State<_PreviewBody> {
 
   Color get _bgColor {
     final effectiveExt = widget.openAs ?? _ext;
-    if (effectiveExt == 'pdf') return Colors.grey.shade200;
+    if (effectiveExt == 'pdf') return DeskconnOverlay.pdfBackground;
     final isVisualMedia =
         effectiveExt == 'image' ||
         effectiveExt == 'video' ||
         kImageExts.contains(effectiveExt) ||
         kVideoExts.contains(effectiveExt);
-    return isVisualMedia ? Colors.black : DeskconnColors.darkBackground;
+    return isVisualMedia ? DeskconnOverlay.videoBackground : DeskconnOverlay.mediaBackground;
   }
 
   @override
@@ -2136,11 +2142,11 @@ class _PreviewBodyState extends State<_PreviewBody> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CircularProgressIndicator(color: Colors.white),
+                        const CircularProgressIndicator(color: DeskconnOverlay.foreground),
                         const SizedBox(height: 16),
                         Text(
                           'Loading ${formatSize(widget.entry.size)}…',
-                          style: const TextStyle(color: Colors.white54),
+                          style: const TextStyle(color: DeskconnOverlay.foregroundSubtle),
                         ),
                       ],
                     ),
@@ -2148,12 +2154,12 @@ class _PreviewBodyState extends State<_PreviewBody> {
                 }
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)),
+                    child: Text('Error: ${snapshot.error}', style: const TextStyle(color: DeskconnOverlay.danger)),
                   );
                 }
                 if (!snapshot.hasData) {
                   return const Center(
-                    child: Text('No data', style: TextStyle(color: Colors.white)),
+                    child: Text('No data', style: TextStyle(color: DeskconnOverlay.foreground)),
                   );
                 }
                 return _buildContent(snapshot.data!, _ext);
@@ -2284,12 +2290,12 @@ class _TextPreview extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: SelectableText(
           text,
-          style: const TextStyle(fontFamily: 'monospace', color: Color(0xFFF8F8F2), fontSize: 14),
+          style: const TextStyle(fontFamily: 'monospace', color: DeskconnOverlay.codeForeground, fontSize: 14),
         ),
       );
     } catch (_) {
       return const Center(
-        child: Text('Cannot display binary file as text', style: TextStyle(color: Colors.white)),
+        child: Text('Cannot display binary file as text', style: TextStyle(color: DeskconnOverlay.foreground)),
       );
     }
   }
@@ -2418,7 +2424,7 @@ class _VideoPreviewState extends State<_VideoPreview> with WidgetsBindingObserve
   Widget build(BuildContext context) {
     if (_error != null) {
       return Center(
-        child: Text(_error!, style: const TextStyle(color: Colors.red)),
+        child: Text(_error!, style: const TextStyle(color: DeskconnOverlay.danger)),
       );
     }
     if (!_ready) {
@@ -2426,10 +2432,13 @@ class _VideoPreviewState extends State<_VideoPreview> with WidgetsBindingObserve
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(color: Colors.white),
+            const CircularProgressIndicator(color: DeskconnOverlay.foreground),
             const SizedBox(height: 16),
             if (widget.size > 0)
-              Text('Loading ${formatSize(widget.size)}…', style: const TextStyle(color: Colors.white54)),
+              Text(
+                'Loading ${formatSize(widget.size)}…',
+                style: const TextStyle(color: DeskconnOverlay.foregroundSubtle),
+              ),
           ],
         ),
       );
@@ -2529,11 +2538,11 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
   Widget build(BuildContext context) {
     if (_error != null) {
       return Center(
-        child: Text(_error!, style: const TextStyle(color: Colors.red)),
+        child: Text(_error!, style: const TextStyle(color: DeskconnOverlay.danger)),
       );
     }
     if (!_loaded) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(child: CircularProgressIndicator(color: DeskconnOverlay.foreground));
     }
     final isPlaying = _state == PlayerState.playing;
     final progress = _duration.inMilliseconds > 0
@@ -2546,11 +2555,11 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.audiotrack, size: 96, color: Colors.white54),
+            const Icon(Icons.audiotrack, size: 96, color: DeskconnOverlay.foregroundSubtle),
             const SizedBox(height: 24),
             Text(
               widget.name,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: DeskconnOverlay.foreground, fontSize: 16),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -2565,8 +2574,8 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_fmt(_position), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                  Text(_fmt(_duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text(_fmt(_position), style: const TextStyle(color: DeskconnOverlay.foregroundSubtle, fontSize: 12)),
+                  Text(_fmt(_duration), style: const TextStyle(color: DeskconnOverlay.foregroundSubtle, fontSize: 12)),
                 ],
               ),
             ),
@@ -2575,7 +2584,7 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.replay_10, color: Colors.white70, size: 32),
+                  icon: const Icon(Icons.replay_10, color: DeskconnOverlay.foregroundMuted, size: 32),
                   onPressed: () =>
                       _player.seek(Duration(seconds: (_position.inSeconds - 10).clamp(0, _duration.inSeconds))),
                 ),
@@ -2583,14 +2592,14 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
                 IconButton(
                   icon: Icon(
                     isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                    color: Colors.white,
+                    color: DeskconnOverlay.foreground,
                     size: 64,
                   ),
                   onPressed: () => isPlaying ? _player.pause() : _player.resume(),
                 ),
                 const SizedBox(width: 16),
                 IconButton(
-                  icon: const Icon(Icons.forward_10, color: Colors.white70, size: 32),
+                  icon: const Icon(Icons.forward_10, color: DeskconnOverlay.foregroundMuted, size: 32),
                   onPressed: () =>
                       _player.seek(Duration(seconds: (_position.inSeconds + 10).clamp(0, _duration.inSeconds))),
                 ),
@@ -2614,21 +2623,27 @@ class _UnknownPreview extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.insert_drive_file, size: 80, color: Colors.grey.shade600),
+          Icon(Icons.insert_drive_file, size: 80, color: DeskconnOverlay.iconMuted),
           const SizedBox(height: 16),
           Text(
             entry.name,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style: const TextStyle(color: DeskconnOverlay.foreground, fontSize: 16),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          Text('Size: ${formatSize(entry.size)}', style: const TextStyle(color: Colors.white54)),
+          Text('Size: ${formatSize(entry.size)}', style: const TextStyle(color: DeskconnOverlay.foregroundSubtle)),
           if (ext.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('.${ext.toUpperCase()} file', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            Text(
+              '.${ext.toUpperCase()} file',
+              style: const TextStyle(color: DeskconnOverlay.foregroundFaint, fontSize: 12),
+            ),
           ],
           const SizedBox(height: 24),
-          const Text('No preview available for this file type', style: TextStyle(color: Colors.white38)),
+          const Text(
+            'No preview available for this file type',
+            style: TextStyle(color: DeskconnOverlay.foregroundFaint),
+          ),
         ],
       ),
     );
@@ -2888,9 +2903,9 @@ class _MediaListTile extends StatelessWidget {
                     bottom: 4,
                     child: Icon(
                       Icons.play_circle_fill,
-                      color: Colors.white,
+                      color: DeskconnOverlay.foreground,
                       size: 20,
-                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                      shadows: [Shadow(color: DeskconnOverlay.barrier, blurRadius: 4)],
                     ),
                   ),
                 if (selected) ColoredBox(color: palette.googleBlue.withValues(alpha: 0.35)),
@@ -2901,8 +2916,8 @@ class _MediaListTile extends StatelessWidget {
                     child: Icon(
                       selected ? Icons.check_circle : Icons.radio_button_unchecked,
                       size: 20,
-                      color: selected ? palette.googleBlue : Colors.white70,
-                      shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                      color: selected ? palette.googleBlue : DeskconnOverlay.foregroundMuted,
+                      shadows: const [Shadow(color: DeskconnOverlay.barrier, blurRadius: 4)],
                     ),
                   ),
               ],
@@ -2987,9 +3002,9 @@ class _MediaGalleryTile extends StatelessWidget {
                   bottom: 4,
                   child: Icon(
                     Icons.play_circle_fill,
-                    color: Colors.white,
+                    color: DeskconnOverlay.foreground,
                     size: 22,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                    shadows: [Shadow(color: DeskconnOverlay.barrier, blurRadius: 4)],
                   ),
                 ),
               if (selected) ColoredBox(color: palette.googleBlue.withValues(alpha: 0.35)),
@@ -3000,8 +3015,8 @@ class _MediaGalleryTile extends StatelessWidget {
                   child: Icon(
                     selected ? Icons.check_circle : Icons.radio_button_unchecked,
                     size: 20,
-                    color: selected ? palette.googleBlue : Colors.white70,
-                    shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                    color: selected ? palette.googleBlue : DeskconnOverlay.foregroundMuted,
+                    shadows: const [Shadow(color: DeskconnOverlay.barrier, blurRadius: 4)],
                   ),
                 ),
             ],
@@ -3054,10 +3069,10 @@ class _FileEntryVisual extends StatelessWidget {
                 const Align(
                   alignment: Alignment.center,
                   child: DecoratedBox(
-                    decoration: BoxDecoration(color: Color(0x99000000), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: DeskconnOverlay.scrimStrong, shape: BoxShape.circle),
                     child: Padding(
                       padding: EdgeInsets.all(3),
-                      child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+                      child: Icon(Icons.play_arrow_rounded, color: DeskconnOverlay.foreground, size: 20),
                     ),
                   ),
                 ),

@@ -7,6 +7,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.da
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/session_encryption.dart';
 import 'package:deskconn_mobile_app/screens/file_explorer_screen.dart' show saveToDevice;
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
@@ -732,11 +733,11 @@ class _ScreenshotPreviewScreenState extends State<_ScreenshotPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: DeskconnOverlay.videoBackground,
       appBar: AppBar(
         title: const Text('Screenshot'),
-        backgroundColor: const Color(0xFF1E1E1E),
-        foregroundColor: Colors.white,
+        backgroundColor: DeskconnOverlay.playerBackground,
+        foregroundColor: DeskconnOverlay.foreground,
         elevation: 0,
         actions: [
           _isSaving
@@ -746,7 +747,7 @@ class _ScreenshotPreviewScreenState extends State<_ScreenshotPreviewScreen> {
                     child: SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: DeskconnOverlay.foreground),
                     ),
                   ),
                 )
