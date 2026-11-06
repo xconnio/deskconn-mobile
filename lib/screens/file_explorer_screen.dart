@@ -2018,8 +2018,8 @@ class _GalleryActionBar extends StatelessWidget {
               _ActionBarButton(icon: Icons.info_outline, label: 'Info', onTap: onInfo),
               if (canEdit)
                 isEditing
-                    ? const _ActionBarButton(icon: Icons.tune, label: 'Editing…', onTap: null, loading: true)
-                    : _ActionBarButton(icon: Icons.tune, label: 'Edit', onTap: onEdit),
+                    ? const _ActionBarButton(icon: Icons.edit_outlined, label: 'Editing…', onTap: null, loading: true)
+                    : _ActionBarButton(icon: Icons.edit_outlined, label: 'Edit', onTap: onEdit),
               isSaving
                   ? const _ActionBarButton(icon: Icons.download_outlined, label: 'Saving…', onTap: null, loading: true)
                   : _ActionBarButton(icon: Icons.download_outlined, label: 'Download', onTap: onDownload),
