@@ -130,29 +130,6 @@ class _PortForwardViewState extends State<PortForwardView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (!widget.config.webRtcEnabled)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: palette.surfaceTint,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: palette.border),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: palette.statusRouted),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'This desktop is on a routed connection. Port forwarding needs a direct (P2P) connection.',
-                        style: DeskconnText.caption.copyWith(color: palette.muted),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             Expanded(
               child: rules.isEmpty
                   ? _EmptyState(palette: palette)

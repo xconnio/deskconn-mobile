@@ -3,9 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 
-import 'package:deskconn_mobile_app/core/port_forward/port_channel.dart';
 import 'package:deskconn_mobile_app/core/port_forward/port_forward_service.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
@@ -126,7 +125,7 @@ class PortForwardController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final session = await _webRtcSession(config);
+      final session = await _session(config);
       if (rule.direction == PortForwardDirection.local) {
         _forwards[rule.id] = await PortForwardSession.start(
           session: session,
@@ -169,7 +168,7 @@ class PortForwardController extends ChangeNotifier {
     }
   }
 
-  Future<web_rtc.WebRTCSession> _webRtcSession(DesktopSessionLaunchConfig config) async {
+  Future<Session> _session(DesktopSessionLaunchConfig config) async {
     final manager = DesktopConnectionManager();
     final connection =
         manager.get(realm) ??
@@ -179,11 +178,7 @@ class PortForwardController extends ChangeNotifier {
           privateKey: config.privateKey,
           webRtcEnabled: config.webRtcEnabled,
         );
-    final session = connection.webRtcSession;
-    if (session == null) {
-      throw PortStreamException('Port forwarding needs a direct (P2P) connection to this desktop.');
-    }
-    return session;
+    return connection.session;
   }
 
   void _syncConnections(PortForwardRule rule) {
