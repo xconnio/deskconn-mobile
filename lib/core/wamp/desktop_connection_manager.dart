@@ -26,13 +26,11 @@ class DesktopConnection {
 
   FileStreamServer? _fileStreamServer;
 
-  FileStreamServer? get fileStreamServer {
-    final rtc = webRtcSession;
-    if (rtc == null) return null;
-    return _fileStreamServer ??= FileStreamServer(FileStreamService(rtc));
+  FileStreamServer get fileStreamServer {
+    return _fileStreamServer ??= FileStreamServer(FileStreamService(session));
   }
 
-  FileStreamService? get fileStreamService => fileStreamServer?.service;
+  FileStreamService get fileStreamService => fileStreamServer.service;
 
   DesktopConnection({required this.session, required this.isP2P, this.webRtcSession});
 

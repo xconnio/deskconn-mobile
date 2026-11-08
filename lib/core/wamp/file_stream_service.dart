@@ -4,19 +4,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart';
-import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
-
-import 'package:deskconn_mobile_app/core/terminal/terminal_encryption.dart';
-
-const int kFileStreamChannelPoolSize = 48;
-
-List<String> fileStreamChannelLabels() => List.generate(kFileStreamChannelPoolSize, (i) => 'file-stream-$i');
-
-class FileStreamPoolExhaustedException implements Exception {
-  @override
-  String toString() => 'file-stream channel pool exhausted for this connection';
-}
+import 'core_client.dart';
+import 'rpc_stream.dart';
 
 class FileStreamRangeResult {
   FileStreamRangeResult({required this.offset, required this.length, required this.chunks});
@@ -26,142 +15,50 @@ class FileStreamRangeResult {
   final Stream<Uint8List> chunks;
 }
 
-const int _kindControl = 0;
-const int _kindData = 1;
 const int _parallelChunkSize = 4 * 1024 * 1024;
-// A 4 MiB read plus its acknowledgement exceeds Core's 64-packet queue.
-// Bound each worker's response burst while retaining parallel downloads.
 const int _downloadChunkSize = 1024 * 1024;
 const int _defaultParallelWorkers = 4;
-const int _wireChunkSize = 65024;
-const int _sendBufferHighWater = 512 * 1024;
-const int _sendBufferLowWater = 256 * 1024;
+const int _wireChunkSize = 64 * 1024;
 const Duration _requestTimeout = Duration(seconds: 15);
 
-class _Envelope {
-  _Envelope(this.kind, this.data);
-
-  final int kind;
-  final Uint8List data;
-}
-
 class _FileStreamChannel {
-  _FileStreamChannel._(this._channel, this._enc, this._events, this._controls);
+  _FileStreamChannel(this._stream);
 
-  final AppDataChannel _channel;
-  final Encryption _enc;
-  final Stream<_Envelope> _events;
-  final StreamIterator<_Envelope> _controls;
+  final RPCFeatureStream _stream;
 
-  static Future<_FileStreamChannel> open(web_rtc.WebRTCSession session, String label) async {
-    final channel = await session.extraChannel(label);
-    final enc = await Encryption.create();
-    final peerKeyCompleter = Completer<Uint8List>();
-    final eventsController = StreamController<_Envelope>.broadcast();
-    // Control replies must survive gaps between requests and send completion.
-    final controlsController = StreamController<_Envelope>();
+  static Future<_FileStreamChannel> open(Session session, String operation) async => _FileStreamChannel(
+    await RPCFeatureStream.open(
+      session,
+      'io.xconn.deskconn.file.stream.$operation',
+      input: operation == 'init' || operation == 'write',
+    ),
+  );
 
-    channel.onMessage = (ChannelMessage msg) {
-      if (!peerKeyCompleter.isCompleted) {
-        if (msg.isBinary) {
-          peerKeyCompleter.completeError(Exception('expected plaintext key-exchange frame first'));
-          return;
-        }
-        try {
-          final peerKeyB64 = (jsonDecode(msg.text) as Map<String, dynamic>)['public_key'] as String;
-          peerKeyCompleter.complete(base64Decode(peerKeyB64));
-        } catch (e) {
-          peerKeyCompleter.completeError(e);
-        }
-        return;
-      }
-
-      if (!msg.isBinary || msg.binary.isEmpty) return;
-      final kind = msg.binary[0];
-      try {
-        final plaintext = enc.decrypt(msg.binary.sublist(1));
-        final controller = kind == _kindControl ? controlsController : eventsController;
-        if (!controller.isClosed) controller.add(_Envelope(kind, plaintext));
-      } catch (e) {
-        if (!eventsController.isClosed) eventsController.addError(e);
-        if (!controlsController.isClosed) controlsController.addError(e);
-      }
-    };
-
-    channel.onDataChannelState = (state) {
-      if (state == ChannelState.closing || state == ChannelState.closed) {
-        if (!peerKeyCompleter.isCompleted) {
-          peerKeyCompleter.completeError(Exception('file-stream channel closed before key exchange'));
-        }
-        final failure = channel.failure;
-        if (failure != null) {
-          if (!eventsController.isClosed) eventsController.addError(failure);
-          if (!controlsController.isClosed) controlsController.addError(failure);
-        }
-        if (!eventsController.isClosed) unawaited(eventsController.close());
-        if (!controlsController.isClosed) unawaited(controlsController.close());
-      }
-    };
-
-    await channel.send(ChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
-    final peerKey = await peerKeyCompleter.future.timeout(_requestTimeout);
-    await enc.acceptServerKey(Uint8List.fromList([...utf8.encode('KEY:'), ...peerKey]));
-
-    return _FileStreamChannel._(channel, enc, eventsController.stream, StreamIterator(controlsController.stream));
+  Future<Map<String, dynamic>> _response() async {
+    final bytes = await _stream.readEncrypted().timeout(_requestTimeout);
+    final response = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+    if (response['ok'] != true) throw StateError(response['error'] as String? ?? 'Remote file operation failed');
+    return response;
   }
 
-  Future<_Envelope> _nextControl() async {
-    if (!await _controls.moveNext().timeout(_requestTimeout)) {
-      throw StateError('file-stream channel closed before acknowledgement');
-    }
-    return _controls.current;
+  Future<Map<String, dynamic>> request(Map<String, dynamic> request) async {
+    await _stream.writeEncrypted(utf8.encode(jsonEncode(request)));
+    return _response();
   }
 
-  Future<Map<String, dynamic>> request(Map<String, dynamic> req) async {
-    final payload = utf8.encode(jsonEncode(req));
-    await _channel.send(ChannelMessage.fromBinary(Uint8List.fromList([_kindControl, ..._enc.encrypt(payload)])));
-
-    final ack = await _nextControl();
-    final decoded = jsonDecode(utf8.decode(ack.data)) as Map<String, dynamic>;
-    if (decoded['ok'] != true) {
-      throw Exception(decoded['error'] as String? ?? 'remote operation failed');
-    }
-    return decoded;
-  }
-
-  Stream<Uint8List> readAsStream(String path, String relPath, int offset, int length) {
-    final controller = StreamController<Uint8List>();
-    var received = 0;
-    late StreamSubscription<_Envelope> sub;
-
-    Future<void> run() async {
-      sub = _events.where((e) => e.kind == _kindData).listen((e) {
-        received += e.data.length;
-        if (!controller.isClosed) controller.add(e.data);
-        if (received >= length) {
-          unawaited(sub.cancel());
-          unawaited(controller.close());
-          unawaited(close());
-        }
-      }, onError: controller.addError);
-
-      try {
-        await request({'op': 'read', 'path': path, 'rel_path': relPath, 'offset': offset, 'length': length});
-        if (length == 0) {
-          await sub.cancel();
-          await controller.close();
-          await close();
-        }
-      } catch (e) {
-        await sub.cancel();
-        if (!controller.isClosed) controller.addError(e);
-        await controller.close();
-        await close();
+  Stream<Uint8List> readAsStream(String path, String relPath, int offset, int length) async* {
+    try {
+      await request({'op': 'read', 'path': path, 'rel_path': relPath, 'offset': offset, 'length': length});
+      var remaining = length;
+      while (remaining > 0) {
+        final bytes = await _stream.readEncrypted().timeout(_requestTimeout);
+        if (bytes.isEmpty || bytes.length > remaining) throw StateError('Invalid file stream chunk length');
+        remaining -= bytes.length;
+        yield bytes;
       }
+    } finally {
+      await close();
     }
-
-    unawaited(run());
-    return controller.stream;
   }
 
   Future<void> readChunk(
@@ -169,30 +66,15 @@ class _FileStreamChannel {
     String relPath,
     int offset,
     int length,
-    void Function(int pieceOffset, Uint8List piece) onPiece,
+    void Function(int offset, Uint8List bytes) onPiece,
   ) async {
+    await request({'op': 'read', 'path': path, 'rel_path': relPath, 'offset': offset, 'length': length});
     var received = 0;
-    final doneCompleter = Completer<void>();
-    final sub = _events
-        .where((e) => e.kind == _kindData)
-        .listen(
-          (e) {
-            onPiece(offset + received, e.data);
-            received += e.data.length;
-            if (received >= length && !doneCompleter.isCompleted) doneCompleter.complete();
-          },
-          onError: (Object e) {
-            if (!doneCompleter.isCompleted) doneCompleter.completeError(e);
-          },
-        );
-
-    try {
-      await request({'op': 'read', 'path': path, 'rel_path': relPath, 'offset': offset, 'length': length});
-      if (length > 0) {
-        await doneCompleter.future.timeout(_requestTimeout);
-      }
-    } finally {
-      await sub.cancel();
+    while (received < length) {
+      final bytes = await _stream.readEncrypted().timeout(_requestTimeout);
+      if (bytes.isEmpty || bytes.length > length - received) throw StateError('Invalid file stream chunk length');
+      onPiece(offset + received, bytes);
+      received += bytes.length;
     }
   }
 
@@ -206,60 +88,24 @@ class _FileStreamChannel {
       'source_is_dir': false,
       'target_is_dir_hint': false,
     });
-
-    for (var i = 0; i < data.length; i += _wireChunkSize) {
-      final piece = data.sublist(i, min(i + _wireChunkSize, data.length));
-      await _waitForSendReady();
-      await _channel.send(ChannelMessage.fromBinary(Uint8List.fromList([_kindData, ..._enc.encrypt(piece)])));
+    for (var offset = 0; offset < data.length; offset += _wireChunkSize) {
+      await _stream.writeEncrypted(data.sublist(offset, min(offset + _wireChunkSize, data.length)));
     }
-
-    final finalAck = await _nextControl();
-    final decoded = jsonDecode(utf8.decode(finalAck.data)) as Map<String, dynamic>;
-    if (decoded['ok'] != true) {
-      throw Exception(decoded['error'] as String? ?? 'remote write failed');
-    }
+    await _response();
   }
 
-  Future<void> _waitForSendReady() async {
-    if ((_channel.bufferedAmount ?? 0) <= _sendBufferHighWater) return;
-    await _channel.waitBufferedBelow(_sendBufferLowWater).timeout(_requestTimeout);
-  }
-
-  Future<void> close() async {
-    await _controls.cancel();
-    try {
-      await _channel.close();
-    } catch (_) {}
-  }
+  Future<void> close() => _stream.close();
 }
 
 class FileStreamService {
   FileStreamService(this._session);
 
-  final web_rtc.WebRTCSession _session;
-  int _nextChannel = 0;
+  final Session _session;
 
-  String _claimLabel() {
-    if (_nextChannel >= kFileStreamChannelPoolSize) {
-      throw FileStreamPoolExhaustedException();
-    }
-    return 'file-stream-${_nextChannel++}';
-  }
-
-  Future<_FileStreamChannel> _openChannel({int attempts = 3}) async {
-    Object? lastError;
-    for (var i = 0; i < attempts; i++) {
-      try {
-        return await _FileStreamChannel.open(_session, _claimLabel());
-      } catch (e) {
-        lastError = e;
-      }
-    }
-    throw lastError!;
-  }
+  Future<_FileStreamChannel> _openChannel(String operation) => _FileStreamChannel.open(_session, operation);
 
   Future<FileStreamRangeResult> openRange(String path, int offset, int length) async {
-    final fsChannel = await _openChannel();
+    final fsChannel = await _openChannel('read');
     final relPath = path.split('/').last;
     return FileStreamRangeResult(
       offset: offset,
@@ -274,7 +120,7 @@ class FileStreamService {
     int numWorkers = _defaultParallelWorkers,
     void Function(int received, int total)? onProgress,
   }) async {
-    final listChannel = await _openChannel();
+    final listChannel = await _openChannel('list');
     final Map<String, dynamic> listResp;
     try {
       listResp = await listChannel.request({'op': 'list', 'path': path, 'recursive': false});
@@ -301,7 +147,7 @@ class FileStreamService {
     Object? workerError;
 
     Future<void> runWorker() async {
-      final worker = await _openChannel();
+      final worker = await _openChannel('read');
       try {
         while (workerError == null) {
           if (nextIndex >= offsets.length) return;
@@ -336,7 +182,7 @@ class FileStreamService {
     final fileName = localPath.split('/').last;
     final remotePath = remoteDir.isEmpty || remoteDir == '/' ? '/$fileName' : '$remoteDir/$fileName';
 
-    final initChannel = await _FileStreamChannel.open(_session, _claimLabel());
+    final initChannel = await _openChannel('init');
     try {
       await initChannel.request({
         'op': 'init',
@@ -362,7 +208,7 @@ class FileStreamService {
     Object? workerError;
 
     Future<void> runWorker() async {
-      final worker = await _FileStreamChannel.open(_session, _claimLabel());
+      final worker = await _openChannel('write');
       final raf = await file.open();
       try {
         while (workerError == null) {

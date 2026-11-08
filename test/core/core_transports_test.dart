@@ -37,7 +37,7 @@ void main() {
       final session = QUICSession(await connection.openSession('realm'), connection);
       addTearDown(session.close);
       expect((await session.call('echo', args: [42])).args, [42]);
-      final stream = await session.openStream();
+      final stream = await session.openRPCStream('rpc.stream');
       final bytes = Uint8List.fromList(List.generate(65024, (i) => i % 256));
       await stream.writeAll(bytes);
       expect(await stream.readExact(bytes.length), bytes);

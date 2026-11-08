@@ -1172,7 +1172,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
   Future<Uint8List> _downloadBytes(String path, String name) async {
     final fsService = DesktopConnectionManager().get(widget.config.realm)?.fileStreamService;
-    if (fsService == null) throw Exception('Download requires a direct connection');
+    if (fsService == null) throw Exception('Download requires a connection');
 
     final tempFile = File('${(await getTemporaryDirectory()).path}/.dl_${DateTime.now().microsecondsSinceEpoch}_$name');
     final raf = await tempFile.open(mode: FileMode.write);
@@ -1244,7 +1244,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
 
     try {
       final fsService = DesktopConnectionManager().get(widget.config.realm)?.fileStreamService;
-      if (fsService == null) throw Exception('Upload requires a direct connection');
+      if (fsService == null) throw Exception('Upload requires a connection');
       await fsService.uploadFile(
         localPath,
         remotePath,
