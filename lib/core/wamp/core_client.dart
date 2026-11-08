@@ -35,12 +35,6 @@ class Session {
   Future<core.Result> callProgress(String uri, Function(core.Result) receiver, {List<dynamic>? args}) =>
       native.callProgress(uri, receiver, args: args);
 
-  Future<core.Result> callProgressiveProgress(
-    String uri,
-    Future<core.Progress> Function() sender,
-    Function(core.Result) receiver,
-  ) => native.callProgressiveProgress(uri, sender, receiver);
-
   Future<RPCByteStream> openRPCStream(String procedure, {bool input = false}) async {
     if (!input) {
       final result = await native.call(procedure).execute();
@@ -67,8 +61,6 @@ class QUICSession extends Session {
   QUICSession(super.native, this.connection) : super(release: connection.close);
 
   final core.QUICConnection connection;
-
-  Future<RPCByteStream> openStream() async => RPCByteStream(await connection.openStream());
 
   Future<Session> openSession(String realm, QUICDialerConfig config) async =>
       Session(await connection.openSession(realm, client: core.Client(config: config)));
