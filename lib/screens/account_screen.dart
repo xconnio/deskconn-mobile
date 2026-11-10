@@ -1,5 +1,8 @@
 import 'package:deskconn_mobile_app/core/constants.dart';
+import 'package:deskconn_mobile_app/theme/spacing.dart';
+import 'package:deskconn_mobile_app/widgets/app_card.dart';
 import 'package:deskconn_mobile_app/widgets/app_shell.dart';
+import 'package:deskconn_mobile_app/widgets/section_header.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
@@ -178,58 +181,75 @@ class _AccountScreenState extends State<AccountScreen> {
       title: 'Account',
       currentSection: AppShellSection.account,
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(DeskconnSpacing.lg),
         children: [
           if (error != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: DeskconnSpacing.md),
               child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
-          const Text('Email'),
-          const SizedBox(height: 4),
-          Text(account['email'] ?? ''),
-          const SizedBox(height: 24),
-          TextField(
-            controller: nameCtrl,
-            decoration: const InputDecoration(labelText: 'username'),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 16),
-          savingProfile
-              ? const Center(child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)))
-              : ElevatedButton(
-                  onPressed: _canUpdateProfile ? _updateProfile : null,
-                  child: const Text('Update profile'),
+          const SectionHeader(title: 'Profile'),
+          AppCard(
+            padding: const EdgeInsets.all(DeskconnSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Email', style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 2),
+                Text(account['email'] ?? ''),
+                const SizedBox(height: DeskconnSpacing.md),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'username'),
+                  onChanged: (_) => setState(() {}),
                 ),
-          const SizedBox(height: 32),
-          const Text('Security'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: passCtrl,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: 'New password',
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                onPressed: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
-              ),
+                const SizedBox(height: DeskconnSpacing.md),
+                savingProfile
+                    ? const Center(
+                        child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : ElevatedButton(
+                        onPressed: _canUpdateProfile ? _updateProfile : null,
+                        child: const Text('Update profile'),
+                      ),
+              ],
             ),
-            onChanged: (_) => setState(() {}),
           ),
-          const SizedBox(height: 16),
-          savingPassword
-              ? const Center(child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)))
-              : ElevatedButton(
-                  onPressed: _canChangePassword ? _changePassword : null,
-                  child: const Text('Change password'),
+          const SectionHeader(title: 'Security'),
+          AppCard(
+            padding: const EdgeInsets.all(DeskconnSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: passCtrl,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'New password',
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
-          const SizedBox(height: 40),
-          const Divider(),
-          const SizedBox(height: 16),
+                const SizedBox(height: DeskconnSpacing.md),
+                savingPassword
+                    ? const Center(
+                        child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : ElevatedButton(
+                        onPressed: _canChangePassword ? _changePassword : null,
+                        child: const Text('Change password'),
+                      ),
+              ],
+            ),
+          ),
+          const SizedBox(height: DeskconnSpacing.xl),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,

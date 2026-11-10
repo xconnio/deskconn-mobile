@@ -6,6 +6,7 @@ import 'package:deskconn_mobile_app/providers/theme_provider.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
 import 'package:deskconn_mobile_app/widgets/app_shell.dart';
+import 'package:deskconn_mobile_app/widgets/settings_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -126,9 +127,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       currentSection: AppShellSection.settings,
       body: ListView(
         children: [
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Account'),
+          SettingsTile(
+            icon: Icons.person_outline,
+            title: 'Account',
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())),
           ),
@@ -151,9 +152,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
           ],
-          ListTile(
-            leading: const Icon(Icons.brightness_6_outlined),
-            title: const Text('Theme'),
+          SettingsTile(
+            icon: Icons.brightness_6_outlined,
+            title: 'Theme',
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -170,11 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => _chooseTheme(context),
           ),
           const Divider(),
-          ListTile(
-            leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
-            title: Text('Logout', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            onTap: () => _logout(context),
-          ),
+          SettingsTile(icon: Icons.logout, title: 'Logout', destructive: true, onTap: () => _logout(context)),
         ],
       ),
     );
