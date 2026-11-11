@@ -24,6 +24,7 @@ import 'package:deskconn_mobile_app/screens/text_editor_screen.dart';
 import 'package:deskconn_mobile_app/screens/vpn_screen.dart';
 import 'package:deskconn_mobile_app/screens/resource_monitor_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/motion.dart';
 import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/page_transitions.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
@@ -202,7 +203,7 @@ class _MachinePagerState extends State<MachinePager> {
                   child: IgnorePointer(
                     child: AnimatedOpacity(
                       opacity: _showIndicator ? 1 : 0,
-                      duration: const Duration(milliseconds: 200),
+                      duration: DeskconnMotion.normal,
                       child: _PageIndicator(count: _desktops.length, controller: _controller),
                     ),
                   ),
@@ -650,8 +651,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       PageRouteBuilder<void>(
         opaque: false,
         barrierColor: DeskconnOverlay.barrier,
-        transitionDuration: const Duration(milliseconds: 250),
-        reverseTransitionDuration: const Duration(milliseconds: 200),
+        transitionDuration: DeskconnMotion.slow,
+        reverseTransitionDuration: DeskconnMotion.normal,
         pageBuilder: (routeContext, animation, _) => overlayWithFixedBar(
           routeContext,
           animation,
@@ -1786,14 +1787,10 @@ class _AutoHideDockState extends State<_AutoHideDock> {
       onEnter: (_) => setState(() => _visible = true),
       onExit: (_) => setState(() => _visible = false),
       child: AnimatedSlide(
-        duration: const Duration(milliseconds: 200),
+        duration: DeskconnMotion.normal,
         curve: Curves.easeOut,
         offset: _visible ? Offset.zero : const Offset(0, 1),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: _visible ? 1 : 0,
-          child: widget.child,
-        ),
+        child: AnimatedOpacity(duration: DeskconnMotion.normal, opacity: _visible ? 1 : 0, child: widget.child),
       ),
     );
   }

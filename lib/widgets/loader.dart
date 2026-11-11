@@ -1,4 +1,5 @@
 import 'package:deskconn_mobile_app/theme/colors.dart';
+import 'package:deskconn_mobile_app/theme/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:deskconn_mobile_app/widgets/logo.dart';
 
@@ -28,25 +29,26 @@ class _DeskconnLoaderState extends State<DeskconnLoader> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const DeskconnLogo(size: 64),
+        if (widget.message != null) ...[
+          const SizedBox(height: 16),
+          Text(widget.message!, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ],
+    );
+
     return Positioned.fill(
       child: AbsorbPointer(
         absorbing: true,
         child: Container(
           color: DeskconnColors.overlay,
           child: Center(
-            child: FadeTransition(
-              opacity: Tween(begin: 0.4, end: 1.0).animate(_controller),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const DeskconnLogo(size: 64),
-                  if (widget.message != null) ...[
-                    const SizedBox(height: 16),
-                    Text(widget.message!, style: Theme.of(context).textTheme.bodyMedium),
-                  ],
-                ],
-              ),
-            ),
+            child: DeskconnMotion.reduce(context)
+                ? content
+                : FadeTransition(opacity: Tween(begin: 0.4, end: 1.0).animate(_controller), child: content),
           ),
         ),
       ),

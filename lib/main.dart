@@ -18,6 +18,7 @@ import 'package:deskconn_mobile_app/screens/desktop_list_screen.dart';
 import 'package:deskconn_mobile_app/screens/share_upload_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
 import 'package:deskconn_mobile_app/theme/app_theme.dart';
+import 'package:deskconn_mobile_app/theme/motion.dart';
 import 'package:deskconn_mobile_app/theme/system_ui.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/theme/typography.dart';
@@ -296,8 +297,8 @@ class _SplashContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOut,
+      duration: DeskconnMotion.reduce(context) ? Duration.zero : DeskconnMotion.emphasise,
+      curve: DeskconnMotion.standard,
       builder: (context, opacity, child) => Opacity(opacity: opacity, child: child),
       child: Column(
         mainAxisSize: MainAxisSize.min,
