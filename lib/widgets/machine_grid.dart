@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:deskconn_mobile_app/core/constants.dart';
+import 'package:deskconn_mobile_app/core/wamp/ui.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
@@ -220,7 +221,7 @@ class _MachineGridState extends State<MachineGrid> {
     final session = context.watch<SessionProvider>();
     final gridDelegate = isDesktopLayout(context)
         ? const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 220,
+            maxCrossAxisExtent: DeskconnUI.gridMaxExtent,
             crossAxisSpacing: 20,
             mainAxisSpacing: 20,
             childAspectRatio: 1.3,

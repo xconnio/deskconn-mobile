@@ -1,4 +1,5 @@
 import 'package:deskconn_mobile_app/core/responsive.dart';
+import 'package:deskconn_mobile_app/core/wamp/ui.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
@@ -74,7 +75,7 @@ class AppShell extends StatelessWidget {
       body: showSidebar
           ? Row(
               children: [
-                SizedBox(width: 280, child: sidebar),
+                SizedBox(width: DeskconnUI.sidebarWidth, child: sidebar),
                 const VerticalDivider(width: 1),
                 Expanded(child: body),
               ],
