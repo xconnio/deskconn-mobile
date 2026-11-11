@@ -388,27 +388,34 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = DeskconnPalette.of(context);
-    final dotColor = switch (status) {
-      _RowStatus.connecting => palette.subtle,
-      _RowStatus.p2p => palette.statusOnline,
-      _RowStatus.routed => palette.statusRouted,
-      _RowStatus.offline => palette.statusOffline,
+    final (dotColor, label) = switch (status) {
+      _RowStatus.connecting => (palette.subtle, 'Connecting'),
+      _RowStatus.p2p => (palette.statusOnline, 'Connected (P2P)'),
+      _RowStatus.routed => (palette.statusRouted, 'Connected (routed)'),
+      _RowStatus.offline => (palette.statusOffline, 'Offline'),
     };
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: dotColor,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: DeskconnOverlay.dotShadow, blurRadius: 4)],
+    return Semantics(
+      button: true,
+      label: 'Connection status: $label',
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: DeskconnOverlay.dotShadow, blurRadius: 4)],
+                ),
+              ),
             ),
           ),
         ),

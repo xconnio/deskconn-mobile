@@ -82,6 +82,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               decoration: InputDecoration(
                 labelText: "Password",
                 suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                   onPressed: () {
                     setState(() {
@@ -104,6 +105,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               decoration: InputDecoration(
                 labelText: "Confirm password",
                 suffixIcon: IconButton(
+                  tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
                   icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
                   onPressed: () {
                     setState(() {
