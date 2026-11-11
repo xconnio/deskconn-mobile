@@ -1,6 +1,9 @@
 import 'package:deskconn_mobile_app/core/constants.dart';
+import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
 import 'package:deskconn_mobile_app/theme/spacing.dart';
 import 'package:deskconn_mobile_app/widgets/app_card.dart';
+import 'package:deskconn_mobile_app/widgets/app_error_view.dart';
+import 'package:deskconn_mobile_app/widgets/app_loading.dart';
 import 'package:deskconn_mobile_app/widgets/app_shell.dart';
 import 'package:deskconn_mobile_app/widgets/section_header.dart';
 import 'package:flutter/material.dart';
@@ -74,7 +77,9 @@ class _AccountScreenState extends State<AccountScreen> {
         session.updateAccount(Map<String, dynamic>.from(res.args[0] as Map));
       }
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) {
+        setState(() => error = DeskconnErrorMapper.messageFor(e, fallback: 'Could not update your profile.'));
+      }
     }
 
     if (mounted) {
@@ -100,7 +105,9 @@ class _AccountScreenState extends State<AccountScreen> {
           .timeout(DeskconnConfig.callTimeout);
       passCtrl.clear();
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) {
+        setState(() => error = DeskconnErrorMapper.messageFor(e, fallback: 'Could not change your password.'));
+      }
     }
 
     if (mounted) {
@@ -183,11 +190,7 @@ class _AccountScreenState extends State<AccountScreen> {
       body: ListView(
         padding: const EdgeInsets.all(DeskconnSpacing.lg),
         children: [
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: DeskconnSpacing.md),
-              child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ),
+          if (error != null) AppErrorView(message: error!),
           const SectionHeader(title: 'Profile'),
           AppCard(
             padding: const EdgeInsets.all(DeskconnSpacing.md),
@@ -205,9 +208,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(height: DeskconnSpacing.md),
                 savingProfile
-                    ? const Center(
-                        child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)),
-                      )
+                    ? const AppLoading(size: 22)
                     : ElevatedButton(
                         onPressed: _canUpdateProfile ? _updateProfile : null,
                         child: const Text('Update profile'),
@@ -239,9 +240,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(height: DeskconnSpacing.md),
                 savingPassword
-                    ? const Center(
-                        child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2)),
-                      )
+                    ? const AppLoading(size: 22)
                     : ElevatedButton(
                         onPressed: _canChangePassword ? _changePassword : null,
                         child: const Text('Change password'),

@@ -14,6 +14,8 @@ import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
+import 'package:deskconn_mobile_app/widgets/app_empty_state.dart';
+import 'package:deskconn_mobile_app/widgets/app_loading.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -248,42 +250,12 @@ class _MachineGridState extends State<MachineGrid> {
               slivers: [
                 SliverFillRemaining(
                   child: session.desktopsLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.desktop_windows_outlined,
-                                  size: 80,
-                                  color: Theme.of(context).disabledColor.withValues(alpha: 0.2),
-                                ),
-                                const SizedBox(height: 24),
-                                Text(
-                                  'No desktop attached yet',
-                                  textAlign: TextAlign.center,
-                                  style: DeskconnText.titleSmall.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    color: widget.overlay
-                                        ? DeskconnOverlay.foregroundMuted
-                                        : Theme.of(context).hintColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Connected desktops will appear here',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color:
-                                        (widget.overlay ? DeskconnOverlay.foregroundMuted : Theme.of(context).hintColor)
-                                            .withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                      ? const AppLoading()
+                      : AppEmptyState(
+                          icon: Icons.desktop_windows_outlined,
+                          title: 'No desktop attached yet',
+                          subtitle: 'Connected desktops will appear here',
+                          onOverlay: widget.overlay,
                         ),
                 ),
               ],
