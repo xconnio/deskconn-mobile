@@ -2,9 +2,8 @@ import 'package:deskconn_mobile_app/core/auth/otp_resend_cooldown.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/core/errors/deskconn_error_messages.dart';
 import 'package:deskconn_mobile_app/screens/desktop_list_screen.dart';
-import 'package:deskconn_mobile_app/theme/typography.dart';
 import 'package:deskconn_mobile_app/widgets/app_snack_bar.dart';
-import 'package:deskconn_mobile_app/widgets/logo.dart';
+import 'package:deskconn_mobile_app/widgets/auth_card_layout.dart';
 import 'package:deskconn_mobile_app/widgets/otp_code_field.dart';
 import 'package:deskconn_mobile_app/widgets/otp_resend_button.dart';
 import 'package:flutter/material.dart';
@@ -93,64 +92,34 @@ class _SignInOtpScreenState extends State<SignInOtpScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Verify sign in')),
-      body: SafeArea(
-        child: Align(
-          alignment: const Alignment(0, -0.48),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                const DeskconnLogo(size: 48),
-                const SizedBox(height: 12),
-                Text('Deskconn', style: DeskconnTypography.title(context)),
-                const SizedBox(height: 32),
-                Card(
-                  elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: SizedBox(
-                    width: 380,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('Enter the 6-digit code sent to ${widget.email}', textAlign: TextAlign.center),
-                          const SizedBox(height: 24),
-                          OtpCodeField(
-                            controller: otpCtrl,
-                            focusNode: otpFocus,
-                            enabled: !session.isLoading,
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: 24),
-                          if (session.isLoading)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 14),
-                              child: Center(
-                                child: SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
-                            )
-                          else
-                            ElevatedButton(onPressed: _canVerify ? _verify : null, child: const Text('Verify')),
-                          const SizedBox(height: 12),
-                          OtpResendButton(
-                            label: _resendCooldown.label,
-                            isLoading: _resending,
-                            onPressed: session.isLoading || !_canResend ? null : _resendCode,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+      body: AuthCardLayout(
+        alignment: const Alignment(0, -0.48),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Enter the 6-digit code sent to ${widget.email}', textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            OtpCodeField(
+              controller: otpCtrl,
+              focusNode: otpFocus,
+              enabled: !session.isLoading,
+              onChanged: (_) => setState(() {}),
             ),
-          ),
+            const SizedBox(height: 24),
+            if (session.isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(child: SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+              )
+            else
+              ElevatedButton(onPressed: _canVerify ? _verify : null, child: const Text('Verify')),
+            const SizedBox(height: 12),
+            OtpResendButton(
+              label: _resendCooldown.label,
+              isLoading: _resending,
+              onPressed: session.isLoading || !_canResend ? null : _resendCode,
+            ),
+          ],
         ),
       ),
     );
