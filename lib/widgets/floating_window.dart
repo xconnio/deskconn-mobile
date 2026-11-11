@@ -121,13 +121,19 @@ class FloatingWindow extends StatelessWidget {
                               style: DeskconnText.labelStrong.copyWith(color: titleColor),
                             ),
                           ),
-                          _TitleBarButton(icon: Icons.remove, onTap: () => manager.minimize(entry.id)),
+                          _TitleBarButton(
+                            icon: Icons.remove,
+                            label: 'Minimize',
+                            onTap: () => manager.minimize(entry.id),
+                          ),
                           _TitleBarButton(
                             icon: entry.maximized ? Icons.filter_none : Icons.crop_square,
+                            label: entry.maximized ? 'Restore' : 'Maximize',
                             onTap: () => manager.toggleMaximize(entry.id, workspaceRect),
                           ),
                           _TitleBarButton(
                             icon: Icons.close,
+                            label: 'Close',
                             hoverColor: DeskconnOverlay.danger,
                             onTap: () => manager.close(entry.id),
                           ),
@@ -255,18 +261,25 @@ class FloatingWindow extends StatelessWidget {
 
 class _TitleBarButton extends StatelessWidget {
   final IconData icon;
+  final String label;
   final VoidCallback onTap;
   final Color? hoverColor;
 
-  const _TitleBarButton({required this.icon, required this.onTap, this.hoverColor});
+  const _TitleBarButton({required this.icon, required this.label, required this.onTap, this.hoverColor});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      hoverColor: hoverColor?.withValues(alpha: 0.15),
-      child: Padding(padding: const EdgeInsets.all(6), child: Icon(icon, size: 15)),
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        hoverColor: hoverColor?.withValues(alpha: 0.15),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: 15, semanticLabel: label),
+        ),
+      ),
     );
   }
 }

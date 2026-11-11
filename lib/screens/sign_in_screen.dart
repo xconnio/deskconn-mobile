@@ -126,6 +126,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               labelText: 'Password',
                               errorText: passwordError,
                               suffixIcon: IconButton(
+                                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                                 onPressed: () {
                                   setState(() {
                                     _obscurePassword = !_obscurePassword;

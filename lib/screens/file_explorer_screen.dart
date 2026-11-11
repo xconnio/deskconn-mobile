@@ -676,7 +676,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
     final single = selected.length == 1 ? selected.first : null;
 
     return AppBar(
-      leading: IconButton(icon: const Icon(Icons.close), onPressed: _exitSelectionMode),
+      leading: IconButton(icon: const Icon(Icons.close), tooltip: 'Exit selection', onPressed: _exitSelectionMode),
       title: Text('${selected.length} selected'),
       actions: [
         PopupMenuButton<String>(
@@ -784,7 +784,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
   AppBar _buildSearchAppBar() {
     return AppBar(
       titleSpacing: 0,
-      leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _exitSearch),
+      leading: IconButton(icon: const Icon(Icons.arrow_back), tooltip: 'Close search', onPressed: _exitSearch),
       title: TextField(
         controller: _searchController,
         autofocus: true,
@@ -805,6 +805,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
       actions: [
         if (_searchQuery.isNotEmpty)
           IconButton(
+            tooltip: 'Clear search',
             icon: const Icon(Icons.close),
             onPressed: () => setState(() {
               _searchQuery = '';
@@ -1065,6 +1066,7 @@ class _FileExplorerScreenState extends State<FileExplorerScreen> {
               child: Text(_clipboardIsCut ? 'Move here' : 'Paste here'),
             ),
             IconButton(
+              tooltip: 'Clear clipboard',
               icon: Icon(Icons.close, size: 18, color: colorScheme.onSecondaryContainer),
               onPressed: () => setState(() {
                 _clipboardEntries = [];
@@ -1587,6 +1589,7 @@ class _Breadcrumbs extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
+            tooltip: 'Up',
             icon: const Icon(Icons.arrow_upward),
             onPressed: onUpTap,
             padding: EdgeInsets.zero,
@@ -2584,12 +2587,14 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
+                  tooltip: 'Replay 10 seconds',
                   icon: const Icon(Icons.replay_10, color: DeskconnOverlay.foregroundMuted, size: 32),
                   onPressed: () =>
                       _player.seek(Duration(seconds: (_position.inSeconds - 10).clamp(0, _duration.inSeconds))),
                 ),
                 const SizedBox(width: 16),
                 IconButton(
+                  tooltip: isPlaying ? 'Pause' : 'Play',
                   icon: Icon(
                     isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
                     color: DeskconnOverlay.foreground,
@@ -2599,6 +2604,7 @@ class _AudioPreviewState extends State<_AudioPreview> with WidgetsBindingObserve
                 ),
                 const SizedBox(width: 16),
                 IconButton(
+                  tooltip: 'Forward 10 seconds',
                   icon: const Icon(Icons.forward_10, color: DeskconnOverlay.foregroundMuted, size: 32),
                   onPressed: () =>
                       _player.seek(Duration(seconds: (_position.inSeconds + 10).clamp(0, _duration.inSeconds))),
@@ -2930,8 +2936,11 @@ class _MediaListTile extends StatelessWidget {
       trailing: selectionMode
           ? null
           : Builder(
-              builder: (menuContext) =>
-                  IconButton(icon: const Icon(Icons.more_vert), onPressed: () => onMenuTap(menuContext)),
+              builder: (menuContext) => IconButton(
+                icon: const Icon(Icons.more_vert),
+                tooltip: 'More',
+                onPressed: () => onMenuTap(menuContext),
+              ),
             ),
     );
   }

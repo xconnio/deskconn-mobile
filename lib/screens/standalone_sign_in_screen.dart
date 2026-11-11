@@ -159,6 +159,7 @@ class _StandaloneSignInScreenState extends State<StandaloneSignInScreen> {
                 labelText: isPassword ? 'Password' : 'Private key (hex)',
                 errorText: secretError,
                 suffixIcon: IconButton(
+                  tooltip: _obscureSecret ? 'Show secret' : 'Hide secret',
                   onPressed: () => setState(() => _obscureSecret = !_obscureSecret),
                   icon: Icon(_obscureSecret ? Icons.visibility_off : Icons.visibility),
                 ),

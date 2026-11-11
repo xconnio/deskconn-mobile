@@ -228,6 +228,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   decoration: InputDecoration(
                     labelText: 'New password',
                     suffixIcon: IconButton(
+                      tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                       icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
                       onPressed: () {
                         setState(() {
