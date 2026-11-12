@@ -50,7 +50,7 @@ dependencies:
 
   xterm:
     git: https://github.com/xconnio/xterm.dart
-  xconn_core: ^0.1.6
+  xconn: ^0.6.0
   app_engine:
     git:
       url: https://github.com/xconnio/deskconn-app-engine

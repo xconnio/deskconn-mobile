@@ -10,8 +10,8 @@ import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as rtc;
 import 'package:deskconn_mobile_app/core/wamp/file_stream_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart' hide Invocation;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xconn_core/webrtc.dart' as core;
-import 'package:xconn_core/xconn_core.dart' show ProtocolError;
+import 'package:xconn/webrtc.dart' as core;
+import 'package:xconn/xconn.dart' show ProtocolError;
 
 class _NativeChannel implements core.DataChannel {
   final packet = Completer<Object>();
