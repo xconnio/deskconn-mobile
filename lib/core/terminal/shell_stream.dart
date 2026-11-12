@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
-import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
 
 import 'terminal_encryption.dart';
 
@@ -14,7 +12,6 @@ const Duration _requestTimeout = Duration(seconds: 15);
 const Duration _pingInterval = Duration(seconds: 10);
 const Duration _closeTimeout = Duration(seconds: 5);
 const int _maxFrameSize = 16 * 1024 * 1024;
-const String shellChannelLabel = 'shell';
 
 class ShellStreamException implements Exception {
   ShellStreamException(this.message);
@@ -23,10 +20,6 @@ class ShellStreamException implements Exception {
 
   @override
   String toString() => message;
-}
-
-class ShellChannelUnavailableException extends ShellStreamException {
-  ShellChannelUnavailableException() : super('shell channel is not open');
 }
 
 class ShellHandle {
@@ -49,130 +42,16 @@ class ShellHandle {
   Future<void> close() => _close();
 }
 
+// Each shell owns its RPC stream, while the WAMP session may be shared by tabs.
 Future<ShellHandle> openShell(
-  web_rtc.WebRTCSession session,
+  Session session,
   int cols,
   int rows,
   void Function(Uint8List data) onData,
-  void Function() onClose,
-) async {
-  final channel = await session.extraChannel(shellChannelLabel);
-  if (channel.state != ChannelState.open) {
-    throw ShellChannelUnavailableException();
-  }
-  final enc = await Encryption.create();
-  final peerKeyCompleter = Completer<Uint8List>();
-  final ackCompleter = Completer<Map<String, dynamic>>();
-  var closedByUs = false;
-  Timer? pingTimer;
-
-  Uint8List envelope(int kind, List<int> plaintext) {
-    return Uint8List.fromList([kind, ...enc.encrypt(plaintext)]);
-  }
-
-  void sendControl(Map<String, dynamic> msg) {
-    try {
-      channel.send(ChannelMessage.fromBinary(envelope(_kindControl, utf8.encode(jsonEncode(msg)))));
-    } catch (_) {}
-  }
-
-  Future<void> closeChannel() async {
-    if (closedByUs) return;
-    closedByUs = true;
-    pingTimer?.cancel();
-    try {
-      await channel.close();
-    } catch (_) {}
-  }
-
-  channel.onMessage = (ChannelMessage msg) {
-    if (!peerKeyCompleter.isCompleted) {
-      if (msg.isBinary) {
-        peerKeyCompleter.completeError(ShellStreamException('expected plaintext key-exchange frame first'));
-        return;
-      }
-      try {
-        final peerKeyB64 = (jsonDecode(msg.text) as Map<String, dynamic>)['public_key'] as String;
-        peerKeyCompleter.complete(base64Decode(peerKeyB64));
-      } catch (e) {
-        peerKeyCompleter.completeError(e);
-      }
-      return;
-    }
-
-    if (!msg.isBinary || msg.binary.isEmpty) return;
-    final kind = msg.binary[0];
-    final Uint8List plaintext;
-    try {
-      plaintext = enc.decrypt(msg.binary.sublist(1));
-    } catch (_) {
-      return;
-    }
-
-    if (kind == _kindControl) {
-      if (!ackCompleter.isCompleted) {
-        ackCompleter.complete(jsonDecode(utf8.decode(plaintext)) as Map<String, dynamic>);
-      }
-      return;
-    }
-    if (kind == _kindData) onData(plaintext);
-  };
-
-  channel.onDataChannelState = (state) {
-    if (state == ChannelState.closing || state == ChannelState.closed) {
-      pingTimer?.cancel();
-      if (!peerKeyCompleter.isCompleted) {
-        peerKeyCompleter.completeError(ShellStreamException('shell channel closed before key exchange'));
-      }
-      if (!ackCompleter.isCompleted) {
-        ackCompleter.completeError(ShellStreamException('shell channel closed before it started'));
-      }
-      if (closedByUs) return;
-      closedByUs = true;
-      onClose();
-    }
-  };
-
-  await channel.send(ChannelMessage(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)})));
-  final peerKey = await peerKeyCompleter.future.timeout(_requestTimeout);
-  await enc.acceptServerKey(Uint8List.fromList([...utf8.encode('KEY:'), ...peerKey]));
-
-  sendControl({'op': 'size', 'cols': cols, 'rows': rows});
-
-  final ack = await ackCompleter.future.timeout(_requestTimeout);
-  final error = ack['error'] as String?;
-  if (error != null) {
-    await closeChannel();
-    throw ShellStreamException(error);
-  }
-
-  pingTimer = Timer.periodic(_pingInterval, (_) => sendControl({'op': 'ping'}));
-
-  return ShellHandle(
-    shellId: ack['shell_id'] as String? ?? '',
-    send: (bytes) {
-      try {
-        channel.send(ChannelMessage.fromBinary(envelope(_kindData, bytes)));
-      } catch (_) {}
-    },
-    resize: (c, r) => sendControl({'op': 'size', 'cols': c, 'rows': r}),
-    close: closeChannel,
-  );
-}
-
-// The routed counterpart to openShell, for a desktop with no P2P connection:
-// the same envelopes, but length-prefixed on a raw QUIC stream the router
-// relays to the desktop. Takes ownership of session (a connection dialled
-// into the desktop's realm for this shell alone) and closes it with the shell.
-Future<ShellHandle> openRoutedShell(
-  QUICSession session,
-  String realm,
-  int cols,
-  int rows,
-  void Function(Uint8List data) onData,
-  void Function() onClose,
-) async {
-  final stream = await session.openStream();
+  void Function() onClose, {
+  bool closeSession = false,
+}) async {
+  final stream = await session.openRPCStream('io.xconn.deskconn.shell.stream');
   final enc = await Encryption.create();
   var closed = false;
   Timer? pingTimer;
@@ -215,16 +94,14 @@ Future<ShellHandle> openRoutedShell(
       await stream.close();
     } catch (_) {}
     try {
-      await session.close().timeout(_closeTimeout);
+      if (closeSession) await session.close().timeout(_closeTimeout);
     } catch (_) {}
   }
 
   final Map<String, dynamic> ack;
   try {
-    await stream.writeAll(frame(utf8.encode(jsonEncode({'realm': realm, 'op': 'shell', 'path': ''}))));
     await stream.writeAll(frame(utf8.encode(jsonEncode({'public_key': base64Encode(enc.clientPublicKey)}))));
 
-    // The router answers in the device's place when it can't relay the stream.
     final reply = jsonDecode(utf8.decode(await readFrame().timeout(_requestTimeout))) as Map<String, dynamic>;
     final relayError = reply['error'] as String?;
     if (relayError != null && relayError.isNotEmpty) throw ShellStreamException(relayError);

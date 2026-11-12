@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:cryptography/dart.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as rtc;
 import 'package:deskconn_mobile_app/core/wamp/file_stream_service.dart';
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart' hide Invocation;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xconn_core/webrtc.dart' as core;
 import 'package:xconn_core/xconn_core.dart' show ProtocolError;
@@ -28,15 +30,18 @@ class _NativeChannel implements core.DataChannel {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _Peer implements rtc.WebRTCSession {
+class _Peer implements Session {
   _Peer([this.contents = const []]);
 
   final List<int> contents;
   final channels = <_FileChannel>[];
 
   @override
-  Future<rtc.AppDataChannel> extraChannel(String label) async {
-    final channel = _FileChannel(contents);
+  Future<RPCByteStream> openRPCStream(String procedure, {bool input = false}) async {
+    final operation = procedure.split('.').last;
+    expect(procedure, 'io.xconn.deskconn.file.stream.$operation');
+    expect(input, operation == 'init' || operation == 'write');
+    final channel = _FileChannel(contents, operation);
     channels.add(channel);
     return channel;
   }
@@ -45,39 +50,56 @@ class _Peer implements rtc.WebRTCSession {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-// Replies arrive before send completes, as they can with native event delivery.
-class _FileChannel implements rtc.AppDataChannel {
-  _FileChannel(this.contents);
+// The fake server speaks the same length-framed encrypted protocol as DeskConn.
+class _FileChannel implements RPCByteStream {
+  _FileChannel(this.contents, this.operation) {
+    _reader = StreamIterator(_output.stream);
+  }
 
   final List<int> contents;
-
-  @override
-  void Function(rtc.ChannelMessage)? onMessage;
-
-  @override
-  void Function(rtc.ChannelState)? onDataChannelState;
-
+  final String operation;
+  final _output = StreamController<Uint8List>();
+  late final StreamIterator<Uint8List> _reader;
+  Uint8List _buffer = Uint8List(0);
   final DartChacha20 cipher = Chacha20.poly1305Aead().toSync();
   SecretKeyData? sendKey;
   SecretKeyData? receiveKey;
   var closed = false;
+  var remainingWrite = 0;
   final requests = <String>[];
   final readLengths = <int>[];
 
-  @override
-  Object? get failure => null;
+  void _frame(List<int> payload) {
+    final frame = Uint8List(4 + payload.length);
+    ByteData.sublistView(frame).setUint32(0, payload.length);
+    frame.setRange(4, frame.length, payload);
+    _output.add(frame);
+  }
 
-  void _reply(Map<String, Object?> response) {
-    final box = cipher.encryptSync(utf8.encode(jsonEncode(response)), secretKey: sendKey!);
-    onMessage!(
-      rtc.ChannelMessage.fromBinary(Uint8List.fromList([0, ...box.nonce, ...box.cipherText, ...box.mac.bytes])),
-    );
+  void _encrypted(List<int> payload) {
+    final box = cipher.encryptSync(payload, secretKey: sendKey!);
+    _frame([...box.nonce, ...box.cipherText, ...box.mac.bytes]);
+  }
+
+  void _reply(Map<String, Object?> response) => _encrypted(utf8.encode(jsonEncode(response)));
+
+  @override
+  Future<Uint8List> readExact(int size) async {
+    while (_buffer.length < size) {
+      if (!await _reader.moveNext()) throw StateError('RPC stream ended');
+      _buffer = Uint8List.fromList([..._buffer, ..._reader.current]);
+    }
+    final value = Uint8List.sublistView(_buffer, 0, size);
+    _buffer = Uint8List.sublistView(_buffer, size);
+    return value;
   }
 
   @override
-  Future<void> send(rtc.ChannelMessage message) async {
-    if (!message.isBinary) {
-      final key = (jsonDecode(message.text) as Map<String, dynamic>)['public_key'] as String;
+  Future<void> writeAll(Uint8List frame) async {
+    expect(ByteData.sublistView(frame).getUint32(0), frame.length - 4);
+    final bytes = frame.sublist(4);
+    if (receiveKey == null) {
+      final key = (jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>)['public_key'] as String;
       final pair = await X25519().newKeyPair();
       final shared = await X25519().sharedSecretKey(
         keyPair: pair,
@@ -87,15 +109,9 @@ class _FileChannel implements rtc.AppDataChannel {
       sendKey = await hkdf.deriveKey(secretKey: shared, info: utf8.encode('backendToFrontend'));
       receiveKey = await hkdf.deriveKey(secretKey: shared, info: utf8.encode('frontendToBackend'));
       final public = await pair.extractPublicKey();
-      onMessage!(rtc.ChannelMessage(jsonEncode({'public_key': base64Encode(public.bytes)})));
+      _frame(utf8.encode(jsonEncode({'public_key': base64Encode(public.bytes)})));
       return;
     }
-
-    if (message.binary[0] == 1) {
-      _reply({'ok': true});
-      return;
-    }
-    final bytes = message.binary.sublist(1);
     final plain = cipher.decryptSync(
       SecretBox(
         bytes.sublist(12, bytes.length - 16),
@@ -104,47 +120,41 @@ class _FileChannel implements rtc.AppDataChannel {
       ),
       secretKey: receiveKey!,
     );
+    if (remainingWrite > 0) {
+      remainingWrite -= plain.length;
+      if (remainingWrite == 0) _reply({'ok': true});
+      return;
+    }
     final request = jsonDecode(utf8.decode(plain)) as Map<String, dynamic>;
     final op = request['op'] as String;
+    expect(op, operation);
     requests.add(op);
     _reply({
       'ok': true,
       if (op == 'list')
         'entries': [
-          {'rel_path': 'empty', 'size': contents.length},
+          {'rel_path': 'file', 'size': contents.length},
         ],
     });
+    if (op == 'write') remainingWrite = request['length'] as int;
     if (op == 'read') {
       final offset = request['offset'] as int;
       final length = request['length'] as int;
       readLengths.add(length);
-      // A consumer can be descheduled while an entire response is queued.
-      if ((length + 65023) ~/ 65024 + 1 > 64) {
-        throw StateError('WebRTC receive queue overflow');
-      }
-      for (var start = offset; start < offset + length; start += 65024) {
-        final end = start + 65024 < offset + length ? start + 65024 : offset + length;
-        final box = cipher.encryptSync(contents.sublist(start, end), secretKey: sendKey!);
-        onMessage!(
-          rtc.ChannelMessage.fromBinary(Uint8List.fromList([1, ...box.nonce, ...box.cipherText, ...box.mac.bytes])),
-        );
+      for (var start = offset; start < offset + length; start += 64 * 1024) {
+        final end = min(start + 64 * 1024, offset + length);
+        _encrypted(contents.sublist(start, end));
       }
     }
-    if (op == 'list' || op == 'init') await close();
   }
 
   @override
   Future<void> close() async {
     if (closed) return;
     closed = true;
-    onDataChannelState?.call(rtc.ChannelState.closed);
+    await _reader.cancel();
+    await _output.close();
   }
-
-  @override
-  int get bufferedAmount => 0;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -162,7 +172,7 @@ void main() {
     expect(channel.failure.toString(), contains('WebRTC receive queue overflow'));
   });
 
-  test('download retains a list reply received before send completes and channel closes', () async {
+  test('download receives a framed list reply and closes its RPC stream', () async {
     final directory = await Directory.systemTemp.createTemp('file-stream-test-');
     addTearDown(() => directory.delete(recursive: true));
     final destination = await File('${directory.path}/download').open(mode: FileMode.write);

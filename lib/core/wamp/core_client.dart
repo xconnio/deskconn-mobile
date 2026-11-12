@@ -35,11 +35,15 @@ class Session {
   Future<core.Result> callProgress(String uri, Function(core.Result) receiver, {List<dynamic>? args}) =>
       native.callProgress(uri, receiver, args: args);
 
-  Future<core.Result> callProgressiveProgress(
-    String uri,
-    Future<core.Progress> Function() sender,
-    Function(core.Result) receiver,
-  ) => native.callProgressiveProgress(uri, sender, receiver);
+  Future<RPCByteStream> openRPCStream(String procedure, {bool input = false}) async {
+    if (!input) {
+      final result = await native.call(procedure).execute();
+      return RPCByteStream(await result.argStream(1));
+    }
+    final offered = await native.offerStream();
+    final completion = native.call(procedure).arg(null).arg(offered.reference).execute();
+    return RPCByteStream(offered.stream, completion: completion);
+  }
 
   Future<void> close() => _closing ??= () async {
     try {
@@ -60,8 +64,6 @@ class QUICSession extends Session {
 
   Future<Session> openSession(String realm, QUICDialerConfig config) async =>
       Session(await connection.openSession(realm, client: core.Client(config: config)));
-
-  Future<RelayStream> openStream() async => RelayStream(await connection.openStream());
 }
 
 Future<QUICSession> connectQUIC(
@@ -89,17 +91,32 @@ Future<QUICSession> connectQUIC(
   }
 }
 
-class RelayStream {
-  RelayStream(this._stream);
+class RPCByteStream {
+  RPCByteStream(this._stream, {Future<core.Result>? completion}) : _completion = completion {
+    if (completion != null) {
+      unawaited(
+        completion.then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) async {
+            _failure = error;
+            await _stream.close();
+          },
+        ),
+      );
+    }
+  }
 
-  final core.ByteStream _stream;
+  final core.RPCStream _stream;
+  final Future<core.Result>? _completion;
+  Object? _failure;
+  Future<void>? _closing;
 
   Future<Uint8List> readExact(int size) async {
     final output = Uint8List(size);
     var offset = 0;
     while (offset < size) {
       final chunk = await _stream.read(size - offset);
-      if (chunk.isEmpty) throw StateError('Relay stream ended');
+      if (chunk.isEmpty) throw _failure ?? StateError('RPC stream ended');
       output.setRange(offset, offset + chunk.length, chunk);
       offset += chunk.length;
     }
@@ -108,5 +125,12 @@ class RelayStream {
 
   Future<void> writeAll(Uint8List bytes) => _stream.writeAll(bytes);
 
-  Future<void> close() => _stream.close();
+  Future<void> close() => _closing ??= () async {
+    try {
+      await _stream.writeEof();
+      await _completion?.timeout(const Duration(seconds: 5));
+    } finally {
+      await _stream.close();
+    }
+  }();
 }

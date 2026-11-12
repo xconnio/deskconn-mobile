@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as web_rtc;
+import 'package:deskconn_mobile_app/core/wamp/core_client.dart' hide Invocation;
 
 import 'port_channel.dart';
 
@@ -18,7 +18,6 @@ const String _opClose = 'close';
 Future<void> _pumpChunks(PortChannel channel, Uint8List bytes) async {
   for (var offset = 0; offset < bytes.length; offset += portChunkSize) {
     final end = offset + portChunkSize < bytes.length ? offset + portChunkSize : bytes.length;
-    await channel.waitForSendReady();
     await channel.sendData(Uint8List.sublistView(bytes, offset, end));
   }
 }
@@ -27,7 +26,7 @@ class PortForwardSession {
   PortForwardSession._(this._server, this._session, this.localPort, this.remotePort, this._onChanged, this._onError);
 
   final ServerSocket _server;
-  final web_rtc.WebRTCSession _session;
+  final Session _session;
   final int localPort;
   final int remotePort;
   final VoidCallback? _onChanged;
@@ -40,14 +39,14 @@ class PortForwardSession {
   int get connections => _sockets.length;
 
   static Future<PortForwardSession> start({
-    required web_rtc.WebRTCSession session,
+    required Session session,
     required int localPort,
     required int remotePort,
     VoidCallback? onChanged,
     void Function(Object error)? onError,
   }) async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, localPort);
-    final forward = PortForwardSession._(server, session, localPort, remotePort, onChanged, onError);
+    final forward = PortForwardSession._(server, session, server.port, remotePort, onChanged, onError);
     forward._accepts = server.listen(
       (socket) => unawaited(forward._accept(socket)),
       onError: (Object e) => onError?.call(e),
@@ -186,7 +185,7 @@ class PortReverseSession {
   int get connections => _sockets.length;
 
   static Future<PortReverseSession> start({
-    required web_rtc.WebRTCSession session,
+    required Session session,
     required int remotePort,
     required int localPort,
     VoidCallback? onChanged,
@@ -300,7 +299,6 @@ class PortReverseSession {
   Future<void> _pumpTagged(int connId, Uint8List bytes) async {
     for (var offset = 0; offset < bytes.length; offset += portChunkSize) {
       final end = offset + portChunkSize < bytes.length ? offset + portChunkSize : bytes.length;
-      await _channel.waitForSendReady();
       await _channel.sendData(encodeConnData(connId, Uint8List.sublistView(bytes, offset, end)));
     }
   }
@@ -318,7 +316,7 @@ class PortReverseSession {
     if (_stopped) return;
     _stopped = true;
     await _events?.cancel();
-    for (final socket in _sockets.values) {
+    for (final socket in _sockets.values.toList()) {
       socket.destroy();
     }
     _sockets.clear();

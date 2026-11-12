@@ -30,10 +30,8 @@ class FileExplorerController {
 
   FileExplorerController(this.session, this.realm, {this.webRtcSession});
 
-  FileStreamService? get _fs {
-    final rtc = webRtcSession;
-    if (rtc == null) return null;
-    return _fileStream ??= FileStreamService(rtc);
+  FileStreamService get _fs {
+    return _fileStream ??= FileStreamService(session);
   }
 
   bool get isKeyExchanged => _encryption != null;
@@ -163,7 +161,6 @@ class FileExplorerController {
 
   Future<Uint8List> _executeDownload(String path, bool isThumbnail) async {
     final fs = _fs;
-    if (fs == null) throw Exception('Download requires a direct connection');
 
     final tempFile = File('${(await getTemporaryDirectory()).path}/.rd_${DateTime.now().microsecondsSinceEpoch}');
     final raf = await tempFile.open(mode: FileMode.write);
@@ -181,7 +178,6 @@ class FileExplorerController {
 
   Future<void> upload(String localFilePath, String remoteDir, {void Function(int sent, int total)? onProgress}) async {
     final fs = _fs;
-    if (fs == null) throw Exception('Upload requires a direct connection');
     final file = File(localFilePath);
     if (!await file.exists()) throw Exception('File not found: $localFilePath');
 

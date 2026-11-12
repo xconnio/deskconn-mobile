@@ -333,7 +333,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
     final files = _files;
     if (files == null) return;
     if (!files.canCreateFiles) {
-      _toast('Creating a file needs a direct connection to the machine.', error: true);
+      _toast('Creating a file needs a connection to the machine.', error: true);
       return;
     }
     final path = await RemotePathPicker.show(

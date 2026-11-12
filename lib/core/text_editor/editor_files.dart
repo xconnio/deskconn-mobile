@@ -63,7 +63,7 @@ class EditorFiles {
 
   SessionEncryption get _crypto => SessionEncryption.deskconnd(explorer.session);
 
-  bool get canCreateFiles => explorer.webRtcSession != null;
+  bool get canCreateFiles => explorer.session.isConnected();
 
   Future<FileBrowseResult> browse(String path) => explorer.browse(path);
 
