@@ -6,8 +6,8 @@ import 'dart:typed_data';
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:deskconn_mobile_app/core/wamp/core_webrtc.dart' as rtc;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xconn_core/quic.dart' as core;
-import 'package:xconn_core/xconn_core.dart' as core;
+import 'package:xconn/quic.dart' as core;
+import 'package:xconn/xconn.dart' as core;
 
 void main() {
   final binary = Platform.environment['XCONN_TRANSPORT_PEER'];

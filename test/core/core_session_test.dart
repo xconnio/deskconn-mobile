@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:deskconn_mobile_app/core/wamp/core_client.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xconn_core/xconn_core.dart' as core;
+import 'package:xconn/xconn.dart' as core;
 
 class _Peer implements core.Peer {
   final _input = StreamController<Object>();

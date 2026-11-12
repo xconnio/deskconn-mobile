@@ -47,7 +47,7 @@ VPN retains its separate WebRTC datagram channel and requires P2P.
 
 ## Setup
 
-The app uses `xconn_core` from pub.dev. A Core source checkout and Rust toolchain
+The app uses `xconn` from pub.dev. A Core source checkout and Rust toolchain
 are not required. Use Flutter 3.41 or newer (CI uses 3.47.7). Android builds also
 need a Gradle-compatible JDK (17 or 21) and the Android SDK.
 
@@ -57,13 +57,13 @@ flutter test
 flutter build apk --no-tree-shake-icons --target-platform android-arm64
 ```
 
-Core's Dart build hook downloads, verifies, and bundles native SDK 0.1.6.
+XConn's Dart build hook downloads, verifies, and bundles native SDK 0.6.0.
 The first build needs access to GitHub Releases; later builds can reuse the
 verified cache. The library includes WAMP, QUIC, WebTransport and WebRTC.
 Downloaded SDKs support Android ARM64 (API 24+), Linux x86-64/ARM64, and macOS
 ARM64. iOS, Windows, and Intel macOS require a separately built native library
 configured through Core's `native_library` build-hook override. See the
-[Core package documentation](https://pub.dev/packages/xconn_core).
+[Core package documentation](https://pub.dev/packages/xconn).
 
 QUIC uses certificate verification against the platform's trusted roots.
 File, shell and TCP forwarding streams work through the cloud router or over

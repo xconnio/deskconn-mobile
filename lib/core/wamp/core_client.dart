@@ -5,12 +5,12 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:xconn_core/quic.dart' as core;
-import 'package:xconn_core/xconn_core.dart' as core;
+import 'package:xconn/quic.dart' as core;
+import 'package:xconn/xconn.dart' as core;
 
-export 'package:xconn_core/auth.dart';
-export 'package:xconn_core/serializers.dart';
-export 'package:xconn_core/xconn_core.dart' show ApplicationError, Result, Progress, Invocation, Event;
+export 'package:xconn/auth.dart';
+export 'package:xconn/serializers.dart';
+export 'package:xconn/xconn.dart' show ApplicationError, Result, Progress, Invocation, Event;
 
 class Session {
   Session(this.native, {Future<void> Function()? release}) : _release = release;

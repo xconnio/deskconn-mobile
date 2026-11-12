@@ -4,8 +4,8 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:xconn_core/webrtc.dart' as core;
-import 'package:xconn_core/xconn_core.dart' as core;
+import 'package:xconn/webrtc.dart' as core;
+import 'package:xconn/xconn.dart' as core;
 
 import 'core_client.dart';
 

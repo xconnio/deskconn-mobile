@@ -1403,14 +1403,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
-  xconn_core:
+  xconn:
     dependency: "direct main"
     description:
-      name: xconn_core
-      sha256: dffc38a0b4ad5008457d02c22e945ef7f0f737dfd25ac252bdc1f9e90257ba57
+      name: xconn
+      sha256: f66684c4ea33c7365e23f25ad332716e3497f930feae198513860d848bb19cde
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.6"
+    version: "0.6.0"
   xdg_directories:
     dependency: transitive
     description:
