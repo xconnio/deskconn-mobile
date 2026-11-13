@@ -984,6 +984,7 @@ MobileSelectionToolbarController _toolbarFor((CodeCommentFormatter, bool)? comme
         if (comment != null) item('Comment', () => run(() => _toggleComment(controller, comment.$1, comment.$2))),
         item('Indent', () => keep(controller.applyIndent)),
         item('Outdent', () => keep(controller.applyOutdent)),
+        item('Expand', () => keep(() => _expandSelection(controller))),
       ],
     );
   },
@@ -1104,6 +1105,99 @@ class _FindBar extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
+}
+
+const _openers = {'(': ')', '[': ']', '{': '}'};
+const _closers = {')': '(', ']': '[', '}': '{'};
+final _wordChar = RegExp(r'\w');
+
+void _expandSelection(CodeLineEditingController controller) {
+  final selection = controller.selection;
+  final lines = controller.codeLines;
+
+  if (selection.isCollapsed) {
+    final index = selection.extentIndex;
+    final text = lines[index].text;
+    var start = selection.extentOffset.clamp(0, text.length);
+    var end = start;
+    while (start > 0 && _wordChar.hasMatch(text[start - 1])) {
+      start--;
+    }
+    while (end < text.length && _wordChar.hasMatch(text[end])) {
+      end++;
+    }
+    if (end > start) {
+      controller.selection = CodeLineSelection(
+        baseIndex: index,
+        baseOffset: start,
+        extentIndex: index,
+        extentOffset: end,
+      );
+      return;
+    }
+  }
+
+  final start = selection.start;
+  final end = selection.end;
+  final endLength = lines[end.index].text.length;
+  final coversLines = start.offset == 0 && end.offset == endLength;
+  if (start.index == end.index && !coversLines) {
+    controller.selection = CodeLineSelection(
+      baseIndex: start.index,
+      baseOffset: 0,
+      extentIndex: start.index,
+      extentOffset: endLength,
+    );
+    return;
+  }
+
+  int? openIndex;
+  int? openOffset;
+  var depth = 0;
+  search:
+  for (var i = start.index; i >= 0; i--) {
+    final text = lines[i].text;
+    for (var j = (i == start.index ? start.offset : text.length) - 1; j >= 0; j--) {
+      final char = text[j];
+      if (_closers.containsKey(char)) {
+        depth++;
+      } else if (_openers.containsKey(char)) {
+        if (depth == 0) {
+          openIndex = i;
+          openOffset = j;
+          break search;
+        }
+        depth--;
+      }
+    }
+  }
+  if (openIndex == null || openOffset == null) {
+    controller.selectAll();
+    return;
+  }
+
+  depth = 0;
+  for (var i = openIndex; i < lines.length; i++) {
+    final text = lines[i].text;
+    for (var j = i == openIndex ? openOffset + 1 : 0; j < text.length; j++) {
+      final char = text[j];
+      if (_openers.containsKey(char)) {
+        depth++;
+      } else if (_closers.containsKey(char)) {
+        if (depth == 0) {
+          controller.selection = CodeLineSelection(
+            baseIndex: openIndex,
+            baseOffset: openOffset,
+            extentIndex: i,
+            extentOffset: j + 1,
+          );
+          return;
+        }
+        depth--;
+      }
+    }
+  }
+  controller.selectAll();
 }
 
 class _ChangeBars extends StatelessWidget {
