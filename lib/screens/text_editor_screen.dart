@@ -28,6 +28,7 @@ const _added = DeskconnEditor.added;
 const _removed = DeskconnEditor.removed;
 const _maxHighlightSize = 256 * 1024;
 const _reviewContext = 3;
+const _closingPairs = {'(': ')', '[': ']', '{': '}', '"': '"', "'": "'"};
 
 const _languageByName = {
   'dockerfile': 'dockerfile',
@@ -168,6 +169,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
   String? _connectError;
   String? _folder;
   bool _wordWrap = false;
+  bool _autoClose = true;
   bool _keyboardOpen = false;
 
   _EditorDoc? get _doc => _docs.isEmpty ? null : _docs[_active.clamp(0, _docs.length - 1)];
@@ -527,7 +529,13 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
   void _insert(String text) {
     final doc = _doc;
     if (doc == null || doc.review || doc.loading) return;
-    doc.controller.replaceSelection(text);
+    final close = _autoClose ? _closingPairs[text] : null;
+    if (close == null || !doc.controller.selection.isCollapsed) {
+      doc.controller.replaceSelection(text);
+      return;
+    }
+    doc.controller.replaceSelection('$text$close');
+    doc.controller.moveCursor(AxisDirection.left);
   }
 
   @override
@@ -667,6 +675,11 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
           value: () => setState(() => _wordWrap = !_wordWrap),
           checked: _wordWrap,
           child: const Text('Word wrap'),
+        ),
+        CheckedPopupMenuItem<VoidCallback>(
+          value: () => setState(() => _autoClose = !_autoClose),
+          checked: _autoClose,
+          child: const Text('Auto-close brackets'),
         ),
         const PopupMenuDivider(),
         _menuItem(Icons.tab_unselected, 'Close tab', doc != null ? () => _closeDoc(doc) : null),
@@ -833,15 +846,16 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       return _Message(icon: Icons.error_outline, message: doc.loadError!, action: ('Retry', () => _load(doc)));
     }
     if (doc.review) return _ReviewView(key: ObjectKey(doc), doc: doc, onChanged: () => setState(() {}));
-    return _EditorView(key: ObjectKey(doc), doc: doc, wordWrap: _wordWrap);
+    return _EditorView(key: ObjectKey(doc), doc: doc, wordWrap: _wordWrap, autoClose: _autoClose);
   }
 }
 
 class _EditorView extends StatelessWidget {
   final _EditorDoc doc;
   final bool wordWrap;
+  final bool autoClose;
 
-  const _EditorView({super.key, required this.doc, required this.wordWrap});
+  const _EditorView({super.key, required this.doc, required this.wordWrap, required this.autoClose});
 
   @override
   Widget build(BuildContext context) {
@@ -852,7 +866,7 @@ class _EditorView extends StatelessWidget {
       findController: doc.find,
       findBuilder: (context, controller, readOnly) => _FindBar(controller: controller),
       wordWrap: wordWrap,
-      autocompleteSymbols: false,
+      autocompleteSymbols: autoClose,
       style: CodeEditorStyle(
         fontSize: 13,
         fontFamily: 'monospace',
