@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:deskconn_mobile_app/core/file_explorer/models.dart';
@@ -12,6 +14,25 @@ Color? gitStatusColor(GitFileStatus? status) => switch (status) {
   GitFileStatus.ignored => DeskconnGit.ignored,
   null => null,
 };
+
+const _skippedDirs = {'node_modules', 'build', 'dist', 'target', 'vendor', 'venv', '__pycache__'};
+const _maxIndexedFiles = 5000;
+const _maxResults = 100;
+
+int? fuzzyScore(String query, String candidate) {
+  final nameStart = candidate.lastIndexOf('/') + 1;
+  var score = 0;
+  var matched = 0;
+  var last = -2;
+  for (var i = 0; i < candidate.length && matched < query.length; i++) {
+    if (candidate[i] != query[matched]) continue;
+    score += i == last + 1 ? 5 : 1;
+    if (i >= nameStart) score += i == nameStart ? 7 : 3;
+    last = i;
+    matched++;
+  }
+  return matched == query.length ? score : null;
+}
 
 class EditorFileTree extends StatefulWidget {
   final EditorFiles files;
@@ -37,6 +58,17 @@ class _EditorFileTreeState extends State<EditorFileTree> {
   final Set<String> _loading = {};
   Map<String, GitFileStatus> _status = const {};
   String? _error;
+  final TextEditingController _query = TextEditingController();
+  List<String>? _index;
+  bool _indexing = false;
+  bool _indexTruncated = false;
+  int _indexGeneration = 0;
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -55,7 +87,11 @@ class _EditorFileTreeState extends State<EditorFileTree> {
       _children.clear();
       _expanded.clear();
       _error = null;
+      _index = null;
+      _indexing = false;
+      _indexGeneration++;
     });
+    if (_query.text.isNotEmpty) unawaited(_buildIndex());
     await Future.wait([_loadDir(widget.rootPath), _loadStatus()]);
   }
 
@@ -76,6 +112,118 @@ class _EditorFileTreeState extends State<EditorFileTree> {
     } finally {
       if (mounted) setState(() => _loading.remove(path));
     }
+  }
+
+  Future<void> _buildIndex() async {
+    if (_index != null || _indexing) return;
+    final generation = _indexGeneration;
+    setState(() => _indexing = true);
+    final files = <String>[];
+    final pending = [widget.rootPath];
+    var truncated = false;
+    while (pending.isNotEmpty && !truncated) {
+      final batch = [for (var i = 0; i < 4 && pending.isNotEmpty; i++) pending.removeLast()];
+      final results = await Future.wait(
+        batch.map((dir) => widget.files.browse(dir).then<FileBrowseResult?>((b) => b, onError: (_) => null)),
+      );
+      if (!mounted || generation != _indexGeneration) return;
+      for (final browse in results.nonNulls) {
+        for (final entry in browse.entries) {
+          if (entry.name.startsWith('.')) continue;
+          final path = entryPath(browse, entry);
+          if (entry.isDir) {
+            if (!_skippedDirs.contains(entry.name)) pending.add(path);
+          } else if (files.length < _maxIndexedFiles) {
+            files.add(path);
+          } else {
+            truncated = true;
+          }
+        }
+      }
+    }
+    if (!mounted || generation != _indexGeneration) return;
+    setState(() {
+      _index = files;
+      _indexing = false;
+      _indexTruncated = truncated;
+    });
+  }
+
+  String _relative(String path) {
+    final root = widget.rootPath.endsWith('/') ? widget.rootPath : '${widget.rootPath}/';
+    return path.startsWith(root) ? path.substring(root.length) : path;
+  }
+
+  List<String> _matches() {
+    final query = _query.text.trim().toLowerCase().replaceAll(' ', '');
+    final index = _index;
+    if (query.isEmpty || index == null) return const [];
+    final scored = <(String, int)>[];
+    for (final path in index) {
+      final score = fuzzyScore(query, _relative(path).toLowerCase());
+      if (score != null) scored.add((path, score));
+    }
+    scored.sort((a, b) {
+      final byScore = b.$2.compareTo(a.$2);
+      return byScore != 0 ? byScore : a.$1.length.compareTo(b.$1.length);
+    });
+    return [for (final (path, _) in scored.take(_maxResults)) path];
+  }
+
+  Widget _buildResults(ThemeData theme) {
+    final matches = _matches();
+    if (matches.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          _indexing ? 'Indexing files…' : 'No matching files',
+          style: DeskconnText.body.copyWith(color: theme.hintColor),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: matches.length + (_indexTruncated ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == matches.length) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Only the first $_maxIndexedFiles files are searched.',
+              style: DeskconnText.body.copyWith(color: theme.hintColor),
+            ),
+          );
+        }
+        final path = matches[index];
+        final relative = _relative(path);
+        final slash = relative.lastIndexOf('/');
+        final color = gitStatusColor(_status[path]);
+        return InkWell(
+          onTap: () => widget.onOpenFile(path),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  relative.substring(slash + 1),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: DeskconnText.body.copyWith(color: color, fontWeight: FontWeight.w600),
+                ),
+                if (slash > 0)
+                  Text(
+                    relative.substring(0, slash),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: DeskconnText.body.copyWith(color: theme.hintColor, fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _toggle(String path) {
@@ -134,9 +282,36 @@ class _EditorFileTreeState extends State<EditorFileTree> {
             ],
           ),
         ),
-        if (_loading.contains(widget.rootPath)) const LinearProgressIndicator(minHeight: 2),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: TextField(
+            controller: _query,
+            autocorrect: false,
+            enableSuggestions: false,
+            onTap: () => unawaited(_buildIndex()),
+            onChanged: (_) {
+              unawaited(_buildIndex());
+              setState(() {});
+            },
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Go to file',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _query.text.isEmpty
+                  ? null
+                  : IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(_query.clear)),
+              filled: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            ),
+          ),
+        ),
+        if (_loading.contains(widget.rootPath) || (_indexing && _query.text.isNotEmpty))
+          const LinearProgressIndicator(minHeight: 2),
         Expanded(
-          child: _error != null
+          child: _query.text.trim().isNotEmpty
+              ? _buildResults(theme)
+              : _error != null
               ? Padding(padding: const EdgeInsets.all(16), child: Text(_error!))
               : ListView.builder(
                   padding: const EdgeInsets.only(bottom: 16),
