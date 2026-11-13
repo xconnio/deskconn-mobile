@@ -895,6 +895,12 @@ class _EditorView extends StatelessWidget {
             textStyle: const TextStyle(color: DeskconnEditor.lineNumber, fontSize: 12, fontFamily: 'monospace'),
             focusedTextStyle: const TextStyle(color: _muted, fontSize: 12, fontFamily: 'monospace'),
           ),
+          DefaultCodeChunkIndicator(
+            width: 22,
+            controller: chunkController,
+            notifier: notifier,
+            painter: DefaultCodeChunkIndicatorPainter(color: _muted),
+          ),
         ],
       ),
       leadingDivider: Container(width: 0.5, color: _border),
