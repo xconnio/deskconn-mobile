@@ -9,6 +9,7 @@ import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
+import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_gradients.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
@@ -290,6 +291,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     super.initState();
     unawaited(_probeDesktopConnection());
     unawaited(_loadCachedWallpaper());
+    final realm = _realm;
+    if (realm != null) unawaited(WallpaperChoice.load(realm));
     unawaited(_loadDockAutoHide());
     unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
@@ -373,6 +376,77 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     if (_connectionStatus == DesktopConnectionStatus.offline) {
       unawaited(_probeDesktopConnection());
     }
+  }
+
+  Widget _wallpaperLayer(Uint8List? wallpaper) {
+    final realm = _realm;
+    return ValueListenableBuilder<Map<String, String?>>(
+      valueListenable: WallpaperChoice.choices,
+      builder: (context, choices, _) {
+        final gradient = wallpaperGradientById(realm == null ? null : choices[realm]);
+        if (gradient != null) return DecoratedBox(decoration: BoxDecoration(gradient: gradient.gradient));
+        if (wallpaper == null) return const _DefaultWallpaper();
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper()),
+            Container(color: DeskconnOverlay.scrimSoft),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _chooseWallpaper(BuildContext context) async {
+    final realm = _realm;
+    if (realm == null) return;
+    final current = WallpaperChoice.choices.value[realm];
+    final machineWallpaper = _wallpaperBytes;
+    final selected = await showModalBottomSheet<(String?,)>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Wallpaper', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 4,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.6,
+                children: [
+                  _WallpaperSwatch(
+                    label: 'Machine',
+                    selected: current == null,
+                    onTap: () => Navigator.pop(context, (null,)),
+                    child: machineWallpaper != null
+                        ? Image.memory(machineWallpaper, fit: BoxFit.cover)
+                        : const _DefaultWallpaper(),
+                  ),
+                  for (final gradient in wallpaperGradients)
+                    _WallpaperSwatch(
+                      label: gradient.label,
+                      selected: current == gradient.id,
+                      onTap: () => Navigator.pop(context, (gradient.id,)),
+                      child: DecoratedBox(decoration: BoxDecoration(gradient: gradient.gradient)),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await WallpaperChoice.save(realm, selected.$1);
   }
 
   Future<void> _loadCachedWallpaper() async {
@@ -739,10 +813,11 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
             body: Stack(
               fit: StackFit.expand,
               children: [
-                wallpaper != null
-                    ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
-                    : const _DefaultWallpaper(),
-                if (wallpaper != null) Container(color: DeskconnOverlay.scrimSoft),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: () => _chooseWallpaper(context),
+                  child: _wallpaperLayer(wallpaper),
+                ),
                 SafeArea(
                   bottom: false,
                   child: Column(
@@ -827,10 +902,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          wallpaper != null
-              ? Image.memory(wallpaper, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _DefaultWallpaper())
-              : const _DefaultWallpaper(),
-          if (wallpaper != null) Container(color: DeskconnOverlay.scrimSoft),
+          _wallpaperLayer(wallpaper),
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1611,6 +1683,48 @@ class _ConnectionStatusChip extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WallpaperSwatch extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _WallpaperSwatch({required this.label, required this.selected, required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: selected ? primary : Colors.transparent, width: 2.5),
+              ),
+              padding: const EdgeInsets.all(2),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(9),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    child,
+                    if (selected) const Center(child: Icon(Icons.check_circle, color: Colors.white, size: 26)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: Theme.of(context).textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
       ),
     );
   }
