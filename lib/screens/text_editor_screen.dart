@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:re_highlight/languages/all.dart';
 import 'package:re_highlight/styles/monokai-sublime.dart';
@@ -509,6 +510,20 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
     );
   }
 
+  Future<void> _goToLine(_EditorDoc doc) async {
+    final controller = doc.controller;
+    final total = controller.codeLines.length;
+    final current = controller.selection.extentIndex + 1;
+    final line = await showDialog<int>(
+      context: context,
+      builder: (context) => _GoToLineDialog(total: total, current: current),
+    );
+    if (line == null || !mounted || !_docs.contains(doc)) return;
+    if (doc.review) setState(() => doc.review = false);
+    controller.selection = CodeLineSelection.collapsed(index: (line - 1).clamp(0, total - 1), offset: 0);
+    controller.makeCursorCenterIfInvisible();
+  }
+
   void _insert(String text) {
     final doc = _doc;
     if (doc == null || doc.review || doc.loading) return;
@@ -642,6 +657,11 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
         if (_folder != null) _menuItem(Icons.folder_off_outlined, 'Close folder', () => _setFolder(null)),
         const PopupMenuDivider(),
         _menuItem(Icons.save_as_outlined, 'Save as…', doc != null && ready ? () => _saveAs(doc) : null),
+        _menuItem(
+          Icons.format_list_numbered,
+          'Go to line…',
+          doc != null && !doc.loading && doc.loadError == null ? () => _goToLine(doc) : null,
+        ),
         _menuItem(Icons.refresh, 'Reload', doc != null && path != null ? () => _reload(doc) : null),
         CheckedPopupMenuItem<VoidCallback>(
           value: () => setState(() => _wordWrap = !_wordWrap),
@@ -1319,6 +1339,50 @@ class _Message extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _GoToLineDialog extends StatefulWidget {
+  final int total;
+  final int current;
+
+  const _GoToLineDialog({required this.total, required this.current});
+
+  @override
+  State<_GoToLineDialog> createState() => _GoToLineDialogState();
+}
+
+class _GoToLineDialogState extends State<_GoToLineDialog> {
+  final _input = TextEditingController();
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final line = int.tryParse(_input.text.trim());
+    if (line != null) Navigator.pop(context, line);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Go to line'),
+      content: TextField(
+        controller: _input,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(hintText: '1 – ${widget.total}', helperText: 'Currently on line ${widget.current}'),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(onPressed: _submit, child: const Text('Go')),
+      ],
     );
   }
 }
