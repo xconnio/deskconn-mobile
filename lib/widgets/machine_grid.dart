@@ -16,7 +16,7 @@ import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/widgets/app_empty_state.dart';
-import 'package:deskconn_mobile_app/widgets/app_loading.dart';
+import 'package:deskconn_mobile_app/widgets/app_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -251,7 +251,13 @@ class _MachineGridState extends State<MachineGrid> {
               slivers: [
                 SliverFillRemaining(
                   child: session.desktopsLoading
-                      ? const AppLoading()
+                      ? GridView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                          gridDelegate: gridDelegate,
+                          itemCount: 6,
+                          itemBuilder: (_, _) => const _MachineCardSkeleton(),
+                        )
                       : AppEmptyState(
                           icon: Icons.desktop_windows_outlined,
                           title: 'No desktop attached yet',
@@ -421,6 +427,25 @@ class _StatusDot extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MachineCardSkeleton extends StatelessWidget {
+  const _MachineCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: AppSkeletonBox(borderRadius: BorderRadius.circular(14))),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.center,
+          child: AppSkeletonBox(width: 90, height: 12, borderRadius: BorderRadius.circular(4)),
+        ),
+      ],
     );
   }
 }
