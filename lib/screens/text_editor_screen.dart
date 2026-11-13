@@ -8,6 +8,7 @@ import 'package:re_highlight/styles/monokai-sublime.dart';
 import 'package:deskconn_mobile_app/core/file_explorer/file_explorer_controller.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_background_service.dart';
 import 'package:deskconn_mobile_app/core/text_editor/editor_files.dart';
+import 'package:deskconn_mobile_app/core/text_editor/editor_session_store.dart';
 import 'package:deskconn_mobile_app/core/text_editor/line_diff.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/theme/editor_colors.dart';
@@ -113,6 +114,7 @@ class _EditorDoc {
   GitOriginal git = GitOriginal.none;
   bool gitLoaded = false;
   bool loading = false;
+  bool needsLoad = false;
   int loadedBytes = 0;
   String? loadError;
   bool saving = false;
@@ -217,17 +219,63 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       setState(() => _files = EditorFiles(explorer!));
       if (_docs.isEmpty) {
         final path = widget.path;
-        path == null ? _newFile() : _openPath(path);
+        if (path != null) {
+          _openPath(path);
+        } else if (!await _restoreSession() && mounted && _docs.isEmpty) {
+          _newFile();
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _connectError = e.toString());
     }
   }
 
+  Future<bool> _restoreSession() async {
+    final config = widget.config;
+    if (config == null || widget.folder != null) return false;
+    final saved = await EditorSessionStore.load(config.realm);
+    if (!mounted || saved == null || _docs.isNotEmpty) return false;
+    setState(() => _folder = saved.folder);
+    if (saved.paths.isEmpty) return false;
+    for (final path in saved.paths) {
+      _addDoc(path).needsLoad = true;
+    }
+    _activate(saved.active.clamp(0, _docs.length - 1));
+    return true;
+  }
+
+  void _saveSession() {
+    final config = widget.config;
+    if (config == null) return;
+    final paths = [
+      for (final doc in _docs)
+        if (doc.path != null) doc.path!,
+    ];
+    final activePath = _doc?.path;
+    final active = activePath == null ? 0 : paths.indexOf(activePath);
+    unawaited(EditorSessionStore.save(config.realm, EditorSession(folder: _folder, paths: paths, active: active)));
+  }
+
+  void _activate(int index) {
+    setState(() => _active = index);
+    final doc = _doc;
+    if (doc != null && doc.needsLoad) {
+      doc.needsLoad = false;
+      _load(doc);
+    }
+    _saveSession();
+  }
+
+  void _setFolder(String? folder) {
+    setState(() => _folder = folder);
+    _saveSession();
+  }
+
   _EditorDoc _addDoc(String? path) {
     final current = _doc;
     if (current != null && current.isBlank && path != null) {
       setState(() => current.path = path);
+      _saveSession();
       return current;
     }
     final doc = _EditorDoc(path);
@@ -236,6 +284,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       _docs.add(doc);
       _active = _docs.length - 1;
     });
+    _saveSession();
     return doc;
   }
 
@@ -256,7 +305,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
   void _openPath(String path) {
     final existing = _docs.indexWhere((d) => d.path == path);
     if (existing != -1) {
-      setState(() => _active = existing);
+      _activate(existing);
       return;
     }
     final doc = _addDoc(path);
@@ -362,6 +411,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       doc.original = text;
       doc.gitLoaded = false;
       doc.recompute();
+      _saveSession();
       _toast('Saved ${doc.name}');
       unawaited(_loadGit(doc));
     } catch (e) {
@@ -401,7 +451,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       initialPath: _folder ?? (current != null ? _dirOf(current) : null),
     );
     if (path == null || !mounted) return;
-    setState(() => _folder = path);
+    _setFolder(path);
     _scaffoldKey.currentState?.openDrawer();
   }
 
@@ -414,6 +464,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       if (_active > index || _active >= _docs.length) _active = (_active - 1).clamp(0, _docs.length);
     });
     doc.dispose();
+    _docs.isEmpty ? _saveSession() : _activate(_active);
   }
 
   Future<void> _closeEditor() async {
@@ -579,7 +630,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
         _menuItem(Icons.note_add_outlined, 'New file', ready ? _newFile : null),
         _menuItem(Icons.file_open_outlined, 'Open file…', ready ? _openFilePicker : null),
         _menuItem(Icons.folder_open_outlined, 'Open folder…', ready ? _openFolderPicker : null),
-        if (_folder != null) _menuItem(Icons.folder_off_outlined, 'Close folder', () => setState(() => _folder = null)),
+        if (_folder != null) _menuItem(Icons.folder_off_outlined, 'Close folder', () => _setFolder(null)),
         const PopupMenuDivider(),
         _menuItem(Icons.save_as_outlined, 'Save as…', doc != null && ready ? () => _saveAs(doc) : null),
         _menuItem(Icons.refresh, 'Reload', doc != null && path != null ? () => _reload(doc) : null),
@@ -668,7 +719,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () => setState(() => _active = index),
+                onTap: () => _activate(index),
                 child: Padding(
                   padding: const EdgeInsets.only(left: 12, right: 2),
                   child: Row(
