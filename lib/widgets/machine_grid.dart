@@ -7,6 +7,7 @@ import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_cache.dart';
+import 'package:deskconn_mobile_app/core/wallpaper/wallpaper_gradients.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
@@ -24,7 +25,6 @@ enum _RowStatus { connecting, p2p, routed, offline }
 class MachineGrid extends StatefulWidget {
   final String? currentRealm;
 
-  /// Drawn over a blurred, darkened backdrop: text goes white.
   final bool overlay;
 
   const MachineGrid({super.key, this.currentRealm, this.overlay = false});
@@ -38,9 +38,14 @@ class _MachineGridState extends State<MachineGrid> {
   final Map<String, Uint8List?> _wallpapers = {};
   Timer? _livenessTimer;
 
+  void _onWallpaperChoice() {
+    if (mounted) setState(() {});
+  }
+
   void _ensureWallpaperLoaded(String realm) {
     if (_wallpapers.containsKey(realm)) return;
     _wallpapers[realm] = null;
+    unawaited(WallpaperChoice.load(realm));
     WallpaperCache.load(realm).then((value) {
       if (!mounted || value == null) return;
       setState(() => _wallpapers[realm] = value);
@@ -60,12 +65,14 @@ class _MachineGridState extends State<MachineGrid> {
   void initState() {
     super.initState();
     _livenessTimer = Timer.periodic(const Duration(seconds: 15), (_) => _verifyAllLiveness());
+    WallpaperChoice.choices.addListener(_onWallpaperChoice);
     ConnectivityService().addListener(_handleConnectivityChanged);
   }
 
   @override
   void dispose() {
     _livenessTimer?.cancel();
+    WallpaperChoice.choices.removeListener(_onWallpaperChoice);
     ConnectivityService().removeListener(_handleConnectivityChanged);
     super.dispose();
   }
@@ -281,6 +288,7 @@ class _MachineGridState extends State<MachineGrid> {
                   name: name,
                   status: status,
                   wallpaper: wallpaper,
+                  gradient: wallpaperGradientById(WallpaperChoice.choices.value[realm]),
                   selected: realm.isNotEmpty && realm == widget.currentRealm,
                   onTap: () => _openDesktop(context, d),
                   onStatusTap: () => _showConnectionDialog(context, d),
@@ -296,6 +304,7 @@ class _MachineCard extends StatelessWidget {
   final String name;
   final _RowStatus status;
   final Uint8List? wallpaper;
+  final WallpaperGradient? gradient;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onStatusTap;
@@ -306,6 +315,7 @@ class _MachineCard extends StatelessWidget {
     required this.name,
     required this.status,
     required this.wallpaper,
+    required this.gradient,
     required this.selected,
     required this.onTap,
     required this.onStatusTap,
@@ -341,7 +351,9 @@ class _MachineCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (wallpaperBytes != null)
+                    if (gradient != null)
+                      DecoratedBox(decoration: BoxDecoration(gradient: gradient!.gradient))
+                    else if (wallpaperBytes != null)
                       Image.memory(
                         wallpaperBytes,
                         fit: BoxFit.cover,
