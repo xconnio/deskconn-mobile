@@ -1,9 +1,12 @@
 import 'dart:ui' as ui;
 
 import 'package:deskconn_mobile_app/core/responsive.dart';
+import 'package:deskconn_mobile_app/providers/session_provider.dart';
+import 'package:deskconn_mobile_app/screens/access_management_screen.dart';
 import 'package:deskconn_mobile_app/theme/page_transitions.dart';
 import 'package:deskconn_mobile_app/widgets/machine_grid.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 Future<void> switchMachine(BuildContext context, {String? currentRealm, WidgetBuilder? bottomBar}) {
   final navigator = Navigator.of(context, rootNavigator: true);
@@ -11,7 +14,6 @@ Future<void> switchMachine(BuildContext context, {String? currentRealm, WidgetBu
     return navigator.push<void>(MaterialPageRoute(builder: (_) => MachinesScreen(currentRealm: currentRealm)));
   }
 
-  // Same look and motion as the recents overlay: blurred wallpaper behind, fade + settle in.
   return navigator.push<void>(
     PageRouteBuilder<void>(
       opaque: false,
@@ -51,6 +53,13 @@ class MachinesScreen extends StatelessWidget {
         surfaceTintColor: overlay ? Colors.transparent : null,
         scrolledUnderElevation: overlay ? 0 : null,
         actions: [
+          if (context.watch<SessionProvider>().account != null)
+            IconButton(
+              tooltip: 'Access management',
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AccessManagementScreen())),
+            ),
           if (isDesktopLayout(context))
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -70,7 +79,6 @@ class MachinesScreen extends StatelessWidget {
     );
     if (!overlay) return screen;
 
-    // Like recents: a tap anywhere outside a machine card behaves like back.
     return GestureDetector(behavior: HitTestBehavior.opaque, onTap: () => Navigator.maybePop(context), child: screen);
   }
 }
