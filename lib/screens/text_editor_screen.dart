@@ -155,7 +155,7 @@ class TextEditorScreen extends StatefulWidget {
   State<TextEditorScreen> createState() => _TextEditorScreenState();
 }
 
-class _TextEditorScreenState extends State<TextEditorScreen> {
+class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey();
   final List<_EditorDoc> _docs = [];
   int _active = 0;
@@ -163,6 +163,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   String? _connectError;
   String? _folder;
   bool _wordWrap = false;
+  bool _keyboardOpen = false;
 
   _EditorDoc? get _doc => _docs.isEmpty ? null : _docs[_active.clamp(0, _docs.length - 1)];
 
@@ -172,11 +173,20 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   void initState() {
     super.initState();
     _folder = widget.folder;
+    WidgetsBinding.instance.addObserver(this);
     _connect();
   }
 
   @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final open = View.of(context).viewInsets.bottom > 0;
+    if (open != _keyboardOpen) setState(() => _keyboardOpen = open);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (final doc in _docs) {
       doc.dispose();
     }
@@ -455,11 +465,10 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final doc = _doc;
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return PopScope(
       canPop: widget.onRequestClose != null || !_anyDirty,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _closeEditor();
+        if (!didPop && widget.onRequestClose == null) _closeEditor();
       },
       child: Theme(
         data: ThemeData.dark(useMaterial3: true).copyWith(
@@ -475,8 +484,10 @@ class _TextEditorScreenState extends State<TextEditorScreen> {
             children: [
               if (_docs.length > 1) _buildTabStrip(),
               Expanded(child: _buildBody(doc)),
-              if (keyboardOpen && doc != null && !doc.review && !doc.loading)
-                _KeyBar(controller: doc.controller, onInsert: _insert),
+              if (_keyboardOpen && doc != null && !doc.review && !doc.loading)
+                CodeEditorTapRegion(
+                  child: _KeyBar(controller: doc.controller, onInsert: _insert),
+                ),
             ],
           ),
         ),
@@ -1017,6 +1028,13 @@ class _KeyBar extends StatelessWidget {
 
   const _KeyBar({required this.controller, required this.onInsert});
 
+  static const _arrows = [
+    (Icons.keyboard_arrow_left, AxisDirection.left),
+    (Icons.keyboard_arrow_up, AxisDirection.up),
+    (Icons.keyboard_arrow_down, AxisDirection.down),
+    (Icons.keyboard_arrow_right, AxisDirection.right),
+  ];
+
   static const _symbols = [
     '{',
     '}',
@@ -1071,6 +1089,12 @@ class _KeyBar extends StatelessWidget {
               Icon(Icons.redo, size: 20, color: controller.canRedo ? _text : _border),
               controller.canRedo ? controller.redo : null,
             ),
+            Container(width: 0.5, margin: const EdgeInsets.symmetric(vertical: 10), color: _border),
+            for (final (icon, direction) in _arrows)
+              key(Icon(icon, size: 20, color: _text), () {
+                controller.moveCursor(direction);
+                controller.makeCursorVisible();
+              }),
             Container(width: 0.5, margin: const EdgeInsets.symmetric(vertical: 10), color: _border),
             for (final symbol in _symbols)
               key(
