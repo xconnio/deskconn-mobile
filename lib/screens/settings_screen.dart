@@ -1,6 +1,4 @@
-import 'package:deskconn_mobile_app/core/constants.dart';
 import 'package:deskconn_mobile_app/core/responsive.dart';
-import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/providers/theme_provider.dart';
 import 'package:deskconn_mobile_app/screens/account_screen.dart';
@@ -11,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String prefKeyWebRtcEnabled = 'webrtc_enabled';
 const String prefKeyDockAutoHide = 'dock_auto_hide';
 
 class SettingsScreen extends StatefulWidget {
@@ -22,7 +19,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _webRtcEnabled = defaultWebRtcEnabled;
   bool _dockAutoHide = false;
 
   @override
@@ -35,17 +31,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _webRtcEnabled = prefs.getBool(prefKeyWebRtcEnabled) ?? defaultWebRtcEnabled;
       _dockAutoHide = prefs.getBool(prefKeyDockAutoHide) ?? false;
     });
-  }
-
-  Future<void> _setWebRtc(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(prefKeyWebRtcEnabled, value);
-    if (!mounted) return;
-    setState(() => _webRtcEnabled = value);
-    await DesktopConnectionManager().invalidateAll();
   }
 
   Future<void> _setDockAutoHide(bool value) async {
@@ -132,14 +119,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Account',
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())),
-          ),
-          const Divider(),
-          SwitchListTile(
-            secondary: const Icon(Icons.settings_ethernet),
-            title: const Text('Use WebRTC (P2P)'),
-            subtitle: const Text('Direct connection; falls back to routed if unavailable'),
-            value: _webRtcEnabled,
-            onChanged: _setWebRtc,
           ),
           const Divider(),
           if (isDesktopLayout(context)) ...[
