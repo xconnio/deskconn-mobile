@@ -11,7 +11,6 @@ import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/screens/desktop_details_screen.dart';
-import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/theme/colors.dart';
 import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
@@ -19,7 +18,6 @@ import 'package:deskconn_mobile_app/widgets/app_empty_state.dart';
 import 'package:deskconn_mobile_app/widgets/app_loading.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 enum _RowStatus { connecting, p2p, routed, offline }
 
@@ -128,8 +126,7 @@ class _MachineGridState extends State<MachineGrid> {
     if (cached != null && cached.isAgentOnline) return true;
 
     if (mounted) setState(() => _connectingRealms.add(realm));
-    final prefs = await SharedPreferences.getInstance();
-    final webRtcEnabled = prefs.getBool(prefKeyWebRtcEnabled) ?? defaultWebRtcEnabled;
+    const webRtcEnabled = defaultWebRtcEnabled;
     final success = await _connect(realm, webRtcEnabled);
     if (mounted) setState(() => _connectingRealms.remove(realm));
     return success;

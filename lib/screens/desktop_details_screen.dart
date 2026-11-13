@@ -429,7 +429,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
         await Future<void>.delayed(const Duration(seconds: 2));
       } catch (e) {
         if (e.toString().contains('wamp.error.no_such_procedure')) {
-          // The desktop's userd predates capabilities.watch: list the apps once.
           try {
             update(await listDesktopApps(session));
           } catch (e) {
@@ -497,7 +496,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     _showMobileApp(id);
   }
 
-  // Recents may still be painting the old image during its exit transition.
   void _disposeSnapshotLater(ui.Image? image) {
     if (image != null) Future.delayed(const Duration(seconds: 1), image.dispose);
   }
@@ -807,8 +805,6 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
                       offstage: entry.id != activeApp?.id,
                       child: TickerMode(
                         enabled: entry.id == activeApp?.id,
-                        // Hidden apps can't hold focus, so a late autofocus (e.g. the terminal
-                        // finishing its connect) never pops the keyboard over the desktop.
                         child: ExcludeFocus(
                           excluding: entry.id != activeApp?.id,
                           child: RepaintBoundary(
@@ -959,8 +955,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
 
     final authId = await DeviceIdentity.desktopAuthId();
     final privateKey = await DeviceIdentity.desktopPrivateKey();
-    final prefs = await SharedPreferences.getInstance();
-    final webRtcEnabled = prefs.getBool(prefKeyWebRtcEnabled) ?? defaultWebRtcEnabled;
+    const webRtcEnabled = defaultWebRtcEnabled;
 
     if (authId == null || privateKey == null || realm == null) {
       if (mounted) {

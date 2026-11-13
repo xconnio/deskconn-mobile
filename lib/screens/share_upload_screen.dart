@@ -9,11 +9,9 @@ import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/share/share_service.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
-import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ShareUploadScreen extends StatefulWidget {
   final List<SharedUploadFile> files;
@@ -89,8 +87,7 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
     if (authId == null || privateKey == null) {
       throw Exception('Missing credentials');
     }
-    final prefs = await SharedPreferences.getInstance();
-    final webRtcEnabled = prefs.getBool(prefKeyWebRtcEnabled) ?? defaultWebRtcEnabled;
+    const webRtcEnabled = defaultWebRtcEnabled;
     final existing = DesktopConnectionManager().get(realm);
     return existing ??
         await DesktopConnectionManager().acquire(
@@ -110,8 +107,7 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
     if (authId == null || privateKey == null) {
       throw Exception('Missing credentials');
     }
-    final prefs = await SharedPreferences.getInstance();
-    final webRtcEnabled = prefs.getBool(prefKeyWebRtcEnabled) ?? defaultWebRtcEnabled;
+    const webRtcEnabled = defaultWebRtcEnabled;
     final connection = await DesktopConnectionManager().reacquire(
       realm: realm,
       authId: authId,
@@ -121,10 +117,6 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
     _controller = FileExplorerController(connection.session, realm, webRtcSession: connection.webRtcSession);
   }
 
-  // Mirrors the reconnect-on-drop pattern used elsewhere (FileExplorerScreen,
-  // ResourceMonitorScreen) — without it, a dead cached session fails every
-  // browse forever until the user backs all the way out and reopens this
-  // dialog from scratch.
   Future<void> _loadPath(String path) async {
     final controller = _controller;
     final realm = _desktop?['realm']?.toString();
@@ -224,10 +216,6 @@ class _ShareUploadScreenState extends State<ShareUploadScreen> {
       );
       Navigator.of(context).pop();
     } catch (e) {
-      // Doesn't auto-retry the upload itself (partial-transfer state makes
-      // that unsafe to resume blindly), but a dead session otherwise leaves
-      // every subsequent manual retry failing the same way forever — so at
-      // least get the connection healthy again for the next tap.
       final realm = _desktop?['realm']?.toString();
       if (realm != null && DesktopConnectionManager().isDeadSessionError(controller.session, e)) {
         try {
