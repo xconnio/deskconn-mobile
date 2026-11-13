@@ -367,6 +367,7 @@ class MachineAccessScreen extends StatefulWidget {
 class _MachineAccessScreenState extends State<MachineAccessScreen> {
   Key _key = UniqueKey();
   bool _canManage = false;
+  bool _isOwner = false;
 
   void _refresh() => setState(() => _key = UniqueKey());
 
@@ -377,7 +378,13 @@ class _MachineAccessScreenState extends State<MachineAccessScreen> {
     final canManage = me?['role'] == 'owner' || me?['role'] == 'admin';
     final results = await Future.wait([api.machineUsers(id), if (canManage) api.machineInvitesOutbox()]);
     final invites = canManage ? results[1].where((i) => i['desktop_id']?.toString() == id).toList() : <Json>[];
-    if (mounted && canManage != _canManage) setState(() => _canManage = canManage);
+    final isOwner = me?['role'] == 'owner';
+    if (mounted && (canManage != _canManage || isOwner != _isOwner)) {
+      setState(() {
+        _canManage = canManage;
+        _isOwner = isOwner;
+      });
+    }
     return _MachineAccessData(me, results[0], invites);
   }
 
@@ -395,6 +402,42 @@ class _MachineAccessScreenState extends State<MachineAccessScreen> {
       success: 'Invitation sent to $email',
     )) {
       _refresh();
+    }
+  }
+
+  Future<void> _deleteMachine() async {
+    final session = context.read<SessionProvider>();
+    final desktop = session.desktops.firstWhere(
+      (d) => d['id']?.toString() == widget.desktopId,
+      orElse: () => {'id': widget.desktopId, 'name': widget.name},
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete ${widget.name}?'),
+        content: const Text(
+          'It is removed from your account and everyone it was shared with loses access. '
+          'To add it back, attach it again from the desktop.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    if (await _run(
+          context,
+          () => session.deleteDesktop(desktop),
+          'Could not delete ${widget.name}.',
+          success: 'Deleted ${widget.name}',
+        ) &&
+        mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -488,7 +531,17 @@ class _MachineAccessScreenState extends State<MachineAccessScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.name)),
+      appBar: AppBar(
+        title: Text(widget.name),
+        actions: [
+          if (_isOwner)
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+              tooltip: 'Delete machine',
+              onPressed: _deleteMachine,
+            ),
+        ],
+      ),
       floatingActionButton: _canManage
           ? FloatingActionButton.extended(
               heroTag: null,

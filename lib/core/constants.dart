@@ -1,5 +1,3 @@
-// P2P is tried first on every platform, falling back to routed when it can't
-// be established -- still user-toggleable in Settings.
 const bool defaultWebRtcEnabled = true;
 
 class DeskconnConfig {
@@ -30,6 +28,7 @@ class DeskconnProcedures {
   static const String accountPrincipalRotate = 'io.xconn.deskconn.account.principal.rotate';
 
   static const String desktopList = 'io.xconn.deskconn.desktop.list';
+  static const String desktopDetach = 'io.xconn.deskconn.desktop.detach';
   static const String deviceCreate = 'io.xconn.deskconn.device.create';
   static const String deviceDelete = 'io.xconn.deskconn.device.delete';
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:deskconn_mobile_app/core/constants.dart';
+import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
 import 'package:deskconn_mobile_app/core/wamp/ui.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
@@ -24,7 +25,6 @@ enum _RowStatus { connecting, p2p, routed, offline }
 class MachineGrid extends StatefulWidget {
   final String? currentRealm;
 
-  /// Drawn over a blurred, darkened backdrop: text goes white.
   final bool overlay;
 
   const MachineGrid({super.key, this.currentRealm, this.overlay = false});
@@ -34,6 +34,57 @@ class MachineGrid extends StatefulWidget {
 }
 
 class _MachineGridState extends State<MachineGrid> {
+  Future<void> _showMachineActions(BuildContext context, Map<String, dynamic> desktop) async {
+    final name = desktop['name'] as String? ?? 'this machine';
+    final isOwner = desktop['role'] == null || desktop['role'] == 'owner';
+    if (!isOwner) return;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+              title: Text('Delete machine', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              onTap: () => Navigator.pop(context, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action != 'delete' || !context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete $name?'),
+        content: const Text(
+          'It is removed from your account and everyone it was shared with loses access. '
+          'To add it back, attach it again from the desktop.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<SessionProvider>().deleteDesktop(desktop);
+      messenger.showSnackBar(SnackBar(content: Text('Deleted $name')));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(DeskconnErrorMapper.messageFor(e, fallback: 'Could not delete $name.'))),
+      );
+    }
+  }
+
   final Set<String> _connectingRealms = {};
   final Map<String, Uint8List?> _wallpapers = {};
   Timer? _livenessTimer;
@@ -283,6 +334,7 @@ class _MachineGridState extends State<MachineGrid> {
                   wallpaper: wallpaper,
                   selected: realm.isNotEmpty && realm == widget.currentRealm,
                   onTap: () => _openDesktop(context, d),
+                  onLongPress: () => _showMachineActions(context, d),
                   onStatusTap: () => _showConnectionDialog(context, d),
                   overlay: widget.overlay,
                 );
@@ -298,6 +350,7 @@ class _MachineCard extends StatelessWidget {
   final Uint8List? wallpaper;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
   final VoidCallback onStatusTap;
 
   final bool overlay;
@@ -308,6 +361,7 @@ class _MachineCard extends StatelessWidget {
     required this.wallpaper,
     required this.selected,
     required this.onTap,
+    required this.onLongPress,
     required this.onStatusTap,
     this.overlay = false,
   });
@@ -338,6 +392,7 @@ class _MachineCard extends StatelessWidget {
               ),
               child: InkWell(
                 onTap: onTap,
+                onLongPress: onLongPress,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

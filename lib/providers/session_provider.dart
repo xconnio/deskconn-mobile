@@ -415,6 +415,15 @@ class SessionProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteDesktop(Map<String, dynamic> desktop) async {
+    final s = await _ensureSession();
+    await s.call(DeskconnProcedures.desktopDetach, args: [desktop['authid']]).timeout(DeskconnConfig.callTimeout);
+    final realm = desktop['realm']?.toString();
+    if (realm != null) await DesktopConnectionManager().release(realm);
+    desktops = desktops.where((d) => d['id'] != desktop['id']).toList();
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     try {
       await DesktopConnectionManager().invalidateAll();
