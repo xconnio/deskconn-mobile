@@ -110,6 +110,7 @@ class _EditorDoc {
 
   String? path;
   final CodeLineEditingController controller = CodeLineEditingController();
+  late final CodeFindController find = CodeFindController(controller);
   String original = '';
   GitOriginal git = GitOriginal.none;
   bool gitLoaded = false;
@@ -139,6 +140,7 @@ class _EditorDoc {
 
   void dispose() {
     refreshTimer?.cancel();
+    find.dispose();
     controller.dispose();
   }
 }
@@ -536,8 +538,13 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
               if (_docs.length > 1) _buildTabStrip(),
               Expanded(child: _buildBody(doc)),
               if (_keyboardOpen && doc != null && !doc.review && !doc.loading)
-                CodeEditorTapRegion(
-                  child: _KeyBar(controller: doc.controller, onInsert: _insert),
+                ValueListenableBuilder(
+                  valueListenable: doc.find,
+                  builder: (context, value, _) => value != null
+                      ? const SizedBox.shrink()
+                      : CodeEditorTapRegion(
+                          child: _KeyBar(controller: doc.controller, onInsert: _insert),
+                        ),
                 ),
             ],
           ),
@@ -593,6 +600,8 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
               ],
             ),
       actions: [
+        if (doc != null && !doc.review && !doc.loading && doc.loadError == null)
+          IconButton(tooltip: 'Find', icon: const Icon(Icons.search), onPressed: doc.find.findMode),
         if (doc != null && doc.path != null && !doc.loading && doc.loadError == null)
           IconButton(
             tooltip: doc.review ? 'Edit' : 'Review changes',
@@ -820,6 +829,8 @@ class _EditorView extends StatelessWidget {
     final mode = lang == null ? null : builtinAllLanguages[lang];
     return CodeEditor(
       controller: doc.controller,
+      findController: doc.find,
+      findBuilder: (context, controller, readOnly) => _FindBar(controller: controller),
       wordWrap: wordWrap,
       autocompleteSymbols: false,
       style: CodeEditorStyle(
@@ -830,6 +841,7 @@ class _EditorView extends StatelessWidget {
         backgroundColor: _bg,
         cursorColor: _accent,
         selectionColor: _accent.withValues(alpha: 0.3),
+        highlightColor: _dirty.withValues(alpha: 0.35),
         cursorLineColor: DeskconnEditor.cursorLine,
         codeTheme: mode == null
             ? null
@@ -882,6 +894,123 @@ final _toolbar = MobileSelectionToolbarController(
     );
   },
 );
+
+class _FindBar extends StatelessWidget implements PreferredSizeWidget {
+  final CodeFindController controller;
+
+  const _FindBar({required this.controller});
+
+  static const _rowHeight = 44.0;
+  static const _chipsHeight = 40.0;
+
+  @override
+  Size get preferredSize {
+    final value = controller.value;
+    if (value == null) return Size.zero;
+    return Size.fromHeight(_rowHeight + _chipsHeight + (value.replaceMode ? _rowHeight : 0) + 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = controller.value;
+    if (value == null) return const SizedBox.shrink();
+    final result = value.result;
+    final count = result == null || result.matches.isEmpty
+        ? (controller.findInputController.text.isEmpty ? '' : 'No results')
+        : '${result.index + 1}/${result.matches.length}';
+    final hasMatches = result != null && result.matches.isNotEmpty;
+
+    Widget iconButton(IconData icon, String tooltip, VoidCallback? onPressed) => IconButton(
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      iconSize: 20,
+      icon: Icon(icon),
+      onPressed: onPressed,
+    );
+
+    Widget field(TextEditingController input, FocusNode focusNode, String hint) => Expanded(
+      child: TextField(
+        controller: input,
+        focusNode: focusNode,
+        autocorrect: false,
+        enableSuggestions: false,
+        style: const TextStyle(fontSize: 14, fontFamily: 'monospace', color: _text),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: hint,
+          hintStyle: const TextStyle(color: _muted),
+          filled: true,
+          fillColor: _bg,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+        ),
+      ),
+    );
+
+    Widget chip(String label, bool selected, VoidCallback onTap) => Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label, style: const TextStyle(fontSize: 12.5)),
+        selected: selected,
+        showCheckmark: false,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        onSelected: (_) => onTap(),
+      ),
+    );
+
+    return CodeEditorTapRegion(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: _bar,
+          border: Border(bottom: BorderSide(color: _border, width: 0.5)),
+        ),
+        padding: const EdgeInsets.only(left: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: _rowHeight,
+              child: Row(
+                children: [
+                  field(controller.findInputController, controller.findInputFocusNode, 'Find'),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(count, style: const TextStyle(color: _muted, fontSize: 12)),
+                  ),
+                  iconButton(Icons.keyboard_arrow_up, 'Previous', hasMatches ? controller.previousMatch : null),
+                  iconButton(Icons.keyboard_arrow_down, 'Next', hasMatches ? controller.nextMatch : null),
+                  iconButton(Icons.close, 'Close', controller.close),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: _chipsHeight,
+              child: Row(
+                children: [
+                  chip('Match case', value.option.caseSensitive, controller.toggleCaseSensitive),
+                  chip('Regex', value.option.regex, controller.toggleRegex),
+                  chip('Replace', value.replaceMode, controller.toggleMode),
+                ],
+              ),
+            ),
+            if (value.replaceMode)
+              SizedBox(
+                height: _rowHeight,
+                child: Row(
+                  children: [
+                    field(controller.replaceInputController, controller.replaceInputFocusNode, 'Replace'),
+                    TextButton(onPressed: hasMatches ? controller.replaceMatch : null, child: const Text('Replace')),
+                    TextButton(onPressed: hasMatches ? controller.replaceAllMatches : null, child: const Text('All')),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _ChangeBars extends StatelessWidget {
   final CodeIndicatorValueNotifier notifier;
