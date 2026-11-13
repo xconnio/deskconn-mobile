@@ -546,6 +546,7 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
   String? _pendingLink;
   Offset? _pasteMenuAnchor;
   Timer? _longPressTimer;
+  bool _shown = true;
 
   @override
   void initState() {
@@ -564,6 +565,7 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     widget.controller.onStarted = () {
       if (!mounted) return;
       setState(() => _isLoading = false);
+      _focusWhenShown();
       widget.controller.clearScreen();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) widget.controller.requestRedraw();
@@ -591,6 +593,20 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
     _longPressTimer?.cancel();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final shown = TickerMode.valuesOf(context).enabled;
+    if (shown && !_shown) _focusWhenShown();
+    _shown = shown;
+  }
+
+  void _focusWhenShown() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.active && _shown && !_focusNode.hasFocus) _focusNode.requestFocus();
+    });
   }
 
   @override
