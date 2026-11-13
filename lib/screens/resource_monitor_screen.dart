@@ -365,81 +365,77 @@ class _ResourceMonitorViewState extends State<ResourceMonitorView> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null && _info == null) return _ErrorView(message: _error!);
     return Column(
       children: [
         _buildStatRow(context),
         Expanded(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null && _info == null
-              ? _ErrorView(message: _error!)
-              : Column(
-                  children: [
-                    if (_actionError != null)
-                      Container(
-                        width: double.infinity,
-                        color: _reconnecting
-                            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
-                            : DeskconnMetrics.critical.withValues(alpha: 0.08),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          children: [
-                            if (_reconnecting)
-                              SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              )
-                            else
-                              const Icon(Icons.error_outline, color: DeskconnMetrics.critical, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _actionError!,
-                                style: TextStyle(
-                                  color: _reconnecting
-                                      ? Theme.of(context).colorScheme.primary
-                                      : DeskconnMetrics.critical,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            if (!_reconnecting)
-                              IconButton(
-                                icon: const Icon(Icons.close, size: 16),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () => setState(() => _actionError = null),
-                              ),
-                          ],
+          child: Column(
+            children: [
+              if (_actionError != null)
+                Container(
+                  width: double.infinity,
+                  color: _reconnecting
+                      ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
+                      : DeskconnMetrics.critical.withValues(alpha: 0.08),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      if (_reconnecting)
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        )
+                      else
+                        const Icon(Icons.error_outline, color: DeskconnMetrics.critical, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _actionError!,
+                          style: TextStyle(
+                            color: _reconnecting ? Theme.of(context).colorScheme.primary : DeskconnMetrics.critical,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                    TabBar(
-                      controller: _tabController,
-                      isScrollable: false,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-                      labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                      unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-                      tabs: [for (final t in _tabs) Tab(height: 48, icon: Icon(t.icon, size: 16), text: t.label)],
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildAppsTab(),
-                          _buildProcessesTab(),
-                          _buildProcessorTab(),
-                          _buildMemoryTab(),
-                          _buildDiskTab(),
-                          _buildNetworkTab(),
-                        ],
-                      ),
-                    ),
+                      if (!_reconnecting)
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => setState(() => _actionError = null),
+                        ),
+                    ],
+                  ),
+                ),
+              TabBar(
+                controller: _tabController,
+                isScrollable: false,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                tabs: [for (final t in _tabs) Tab(height: 48, icon: Icon(t.icon, size: 16), text: t.label)],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildAppsTab(),
+                    _buildProcessesTab(),
+                    _buildProcessorTab(),
+                    _buildMemoryTab(),
+                    _buildDiskTab(),
+                    _buildNetworkTab(),
                   ],
                 ),
+              ),
+            ],
+          ),
         ),
       ],
     );
