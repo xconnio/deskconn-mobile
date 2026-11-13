@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:re_highlight/languages/all.dart';
+import 'package:re_highlight/re_highlight.dart';
 import 'package:re_highlight/styles/monokai-sublime.dart';
 
 import 'package:deskconn_mobile_app/core/file_explorer/file_explorer_controller.dart';
@@ -126,6 +127,7 @@ class _EditorDoc {
   bool review = false;
   bool reviewWholeFile = false;
   final Set<int> expandedFolds = {};
+  (String, String, _HighlightedLines?, _HighlightedLines?)? reviewHighlight;
   Timer? refreshTimer;
 
   String get name => path?.split('/').last ?? 'Untitled';
@@ -1267,6 +1269,7 @@ class _ReviewView extends StatelessWidget {
         if (lines.every((l) => l.kind == ReviewKind.context)) note = 'No changes since the last commit';
       }
     }
+    final (oldLines, newLines) = note == null ? _highlightReview(doc, text) : (null, null);
     final added = lines.where((l) => l.kind == ReviewKind.added).length;
     final removed = lines.where((l) => l.kind == ReviewKind.removed).length;
     final rows = note != null
@@ -1334,7 +1337,11 @@ class _ReviewView extends StatelessWidget {
                   ),
                 );
               }
-              return _ReviewRow(line: row as ReviewLine);
+              final line = row as ReviewLine;
+              final spans = line.kind == ReviewKind.removed
+                  ? _lineAt(oldLines, line.oldNo)
+                  : _lineAt(newLines, line.newNo);
+              return _ReviewRow(line: line, spans: spans);
             },
           ),
         ),
@@ -1343,10 +1350,66 @@ class _ReviewView extends StatelessWidget {
   }
 }
 
+typedef _HighlightedLines = List<List<TextSpan>>;
+
+const _reviewCodeStyle = TextStyle(color: _text, fontFamily: 'monospace', fontSize: 12.5, height: 1.4);
+
+final _reviewHighlighter = Highlight();
+
+List<TextSpan>? _lineAt(_HighlightedLines? lines, int? number) {
+  if (lines == null || number == null || number < 1 || number > lines.length) return null;
+  return lines[number - 1];
+}
+
+(_HighlightedLines?, _HighlightedLines?) _highlightReview(_EditorDoc doc, String text) {
+  final baseline = doc.git.baselineFor(text);
+  final cached = doc.reviewHighlight;
+  if (cached != null && cached.$1 == baseline && cached.$2 == text) return (cached.$3, cached.$4);
+  final lang = _languageFor(doc.name);
+  final result = (_highlightLines(baseline, lang), _highlightLines(text, lang));
+  doc.reviewHighlight = (baseline, text, result.$1, result.$2);
+  return result;
+}
+
+_HighlightedLines? _highlightLines(String text, String? lang) {
+  if (lang == null || text.isEmpty || text.length > _maxHighlightSize) return null;
+  final mode = builtinAllLanguages[lang];
+  if (mode == null) return null;
+  try {
+    _reviewHighlighter.registerLanguage(lang, mode);
+    final renderer = TextSpanRenderer(null, monokaiSublimeTheme);
+    _reviewHighlighter.highlight(code: text, language: lang).render(renderer);
+    final root = renderer.span;
+    if (root == null) return null;
+    final lines = <List<TextSpan>>[[]];
+    void visit(InlineSpan span, TextStyle? inherited) {
+      if (span is! TextSpan) return;
+      final style = inherited == null ? span.style : inherited.merge(span.style);
+      final value = span.text;
+      if (value != null) {
+        final parts = value.split('\n');
+        for (var i = 0; i < parts.length; i++) {
+          if (i > 0) lines.add([]);
+          if (parts[i].isNotEmpty) lines.last.add(TextSpan(text: parts[i].replaceAll('\t', '    '), style: style));
+        }
+      }
+      for (final child in span.children ?? const <InlineSpan>[]) {
+        visit(child, style);
+      }
+    }
+
+    visit(root, null);
+    return lines;
+  } catch (_) {
+    return null;
+  }
+}
+
 class _ReviewRow extends StatelessWidget {
   final ReviewLine line;
+  final List<TextSpan>? spans;
 
-  const _ReviewRow({required this.line});
+  const _ReviewRow({required this.line, this.spans});
 
   @override
   Widget build(BuildContext context) {
@@ -1379,10 +1442,9 @@ class _ReviewRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(
-              line.text.replaceAll('\t', '    '),
-              style: const TextStyle(color: _text, fontFamily: 'monospace', fontSize: 12.5, height: 1.4),
-            ),
+            child: spans == null
+                ? Text(line.text.replaceAll('\t', '    '), style: _reviewCodeStyle)
+                : Text.rich(TextSpan(style: _reviewCodeStyle, children: spans)),
           ),
         ],
       ),
