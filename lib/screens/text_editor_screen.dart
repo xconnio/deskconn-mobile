@@ -839,7 +839,7 @@ class _EditorView extends StatelessWidget {
               ),
       ),
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 80),
-      toolbarController: _toolbar,
+      toolbarController: _toolbarFor(_commentStyleFor(lang)),
       indicatorBuilder: (context, editingController, chunkController, notifier) => Row(
         children: [
           _ChangeBars(notifier: notifier, changes: doc.changes),
@@ -856,12 +856,65 @@ class _EditorView extends StatelessWidget {
   }
 }
 
-final _toolbar = MobileSelectionToolbarController(
+const _hashCommentLanguages = {
+  'python',
+  'bash',
+  'yaml',
+  'ruby',
+  'dockerfile',
+  'makefile',
+  'cmake',
+  'perl',
+  'r',
+  'ini',
+  'powershell',
+  'nginx',
+  'elixir',
+  'julia',
+  'properties',
+};
+const _dashCommentLanguages = {'sql', 'lua', 'haskell', 'elm'};
+const _markupCommentLanguages = {'xml', 'markdown'};
+
+(CodeCommentFormatter, bool)? _commentStyleFor(String? lang) {
+  if (lang == null) return null;
+  if (_hashCommentLanguages.contains(lang)) return (DefaultCodeCommentFormatter(singleLinePrefix: '#'), true);
+  if (_dashCommentLanguages.contains(lang)) return (DefaultCodeCommentFormatter(singleLinePrefix: '--'), true);
+  if (_markupCommentLanguages.contains(lang)) {
+    return (DefaultCodeCommentFormatter(multiLinePrefix: '<!--', multiLineSuffix: '-->'), false);
+  }
+  if (lang == 'css') return (DefaultCodeCommentFormatter(multiLinePrefix: '/*', multiLineSuffix: '*/'), false);
+  return (DefaultCodeCommentFormatter(singleLinePrefix: '//'), true);
+}
+
+void _duplicateLines(CodeLineEditingController controller) {
+  final selection = controller.selection;
+  final start = selection.startIndex;
+  final end = selection.endIndex;
+  final lines = [for (var i = start; i <= end; i++) controller.codeLines[i].text];
+  final endOffset = controller.codeLines[end].text.length;
+  controller.replaceSelection('\n${lines.join('\n')}', CodeLineSelection.collapsed(index: end, offset: endOffset));
+}
+
+void _toggleComment(CodeLineEditingController controller, CodeCommentFormatter formatter, bool single) {
+  final value = formatter.format(controller.value, controller.options.indent, single);
+  controller.runRevocableOp(() => controller.value = value);
+}
+
+MobileSelectionToolbarController _toolbarFor((CodeCommentFormatter, bool)? comment) => MobileSelectionToolbarController(
   builder: ({required context, required anchors, required controller, required onDismiss, required onRefresh}) {
     void run(VoidCallback action) {
       action();
       onDismiss();
     }
+
+    void keep(VoidCallback action) {
+      action();
+      onRefresh();
+    }
+
+    ContextMenuButtonItem item(String label, VoidCallback onPressed) =>
+        ContextMenuButtonItem(label: label, onPressed: onPressed);
 
     return AdaptiveTextSelectionToolbar.buttonItems(
       anchors: anchors,
@@ -871,13 +924,14 @@ final _toolbar = MobileSelectionToolbarController(
           ContextMenuButtonItem(type: ContextMenuButtonType.copy, onPressed: () => run(controller.copy)),
         ],
         ContextMenuButtonItem(type: ContextMenuButtonType.paste, onPressed: () => run(controller.paste)),
-        ContextMenuButtonItem(
-          type: ContextMenuButtonType.selectAll,
-          onPressed: () {
-            controller.selectAll();
-            onRefresh();
-          },
-        ),
+        ContextMenuButtonItem(type: ContextMenuButtonType.selectAll, onPressed: () => keep(controller.selectAll)),
+        item('Duplicate', () => run(() => _duplicateLines(controller))),
+        item('Delete line', () => run(controller.deleteSelectionLines)),
+        item('Move up', () => keep(controller.moveSelectionLinesUp)),
+        item('Move down', () => keep(controller.moveSelectionLinesDown)),
+        if (comment != null) item('Comment', () => run(() => _toggleComment(controller, comment.$1, comment.$2))),
+        item('Indent', () => keep(controller.applyIndent)),
+        item('Outdent', () => keep(controller.applyOutdent)),
       ],
     );
   },
