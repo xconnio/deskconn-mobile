@@ -649,53 +649,58 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
                   icon: const Icon(Icons.save_outlined),
                   onPressed: doc.dirty ? () => _save(doc) : null,
                 ),
-        _buildMenu(doc),
+        IconButton(tooltip: 'Commands', icon: const Icon(Icons.more_vert), onPressed: () => _openPalette(doc)),
       ],
     );
   }
 
-  Widget _buildMenu(_EditorDoc? doc) {
+  List<_Command> _commands(_EditorDoc? doc) {
     final ready = _files != null;
     final path = doc?.path;
-    return PopupMenuButton<VoidCallback>(
-      tooltip: 'More',
-      onSelected: (action) => action(),
-      itemBuilder: (_) => [
-        _menuItem(Icons.note_add_outlined, 'New file', ready ? _newFile : null),
-        _menuItem(Icons.file_open_outlined, 'Open file…', ready ? _openFilePicker : null),
-        _menuItem(Icons.folder_open_outlined, 'Open folder…', ready ? _openFolderPicker : null),
-        if (_folder != null) _menuItem(Icons.folder_off_outlined, 'Close folder', () => _setFolder(null)),
-        const PopupMenuDivider(),
-        _menuItem(Icons.save_as_outlined, 'Save as…', doc != null && ready ? () => _saveAs(doc) : null),
-        _menuItem(
-          Icons.format_list_numbered,
-          'Go to line…',
-          doc != null && !doc.loading && doc.loadError == null ? () => _goToLine(doc) : null,
+    final editable = doc != null && !doc.loading && doc.loadError == null;
+    return [
+      if (doc != null && doc.dirty && !doc.saving) _Command(Icons.save_outlined, 'Save', () => _save(doc)),
+      if (doc != null && ready) _Command(Icons.save_as_outlined, 'Save as…', () => _saveAs(doc)),
+      if (ready) _Command(Icons.note_add_outlined, 'New file', _newFile),
+      if (ready) _Command(Icons.file_open_outlined, 'Open file…', _openFilePicker),
+      if (ready) _Command(Icons.folder_open_outlined, 'Open folder…', _openFolderPicker),
+      if (_folder != null) _Command(Icons.folder_off_outlined, 'Close folder', () => _setFolder(null)),
+      if (editable && !doc.review) _Command(Icons.search, 'Find', doc.find.findMode),
+      if (editable && !doc.review) _Command(Icons.find_replace, 'Replace', doc.find.replaceMode),
+      if (editable) _Command(Icons.format_list_numbered, 'Go to line…', () => _goToLine(doc)),
+      if (editable && path != null)
+        _Command(
+          doc.review ? Icons.edit_outlined : Icons.difference_outlined,
+          doc.review ? 'Back to editing' : 'Review changes',
+          () => setState(() {
+            doc.review = !doc.review;
+            doc.expandedFolds.clear();
+          }),
         ),
-        _menuItem(Icons.refresh, 'Reload', doc != null && path != null ? () => _reload(doc) : null),
-        CheckedPopupMenuItem<VoidCallback>(
-          value: () => setState(() => _wordWrap = !_wordWrap),
-          checked: _wordWrap,
-          child: const Text('Word wrap'),
-        ),
-        CheckedPopupMenuItem<VoidCallback>(
-          value: () => setState(() => _autoClose = !_autoClose),
-          checked: _autoClose,
-          child: const Text('Auto-close brackets'),
-        ),
-        const PopupMenuDivider(),
-        _menuItem(Icons.tab_unselected, 'Close tab', doc != null ? () => _closeDoc(doc) : null),
-        _menuItem(Icons.close, 'Close editor', _closeEditor),
-      ],
-    );
+      if (doc != null && path != null) _Command(Icons.refresh, 'Reload', () => _reload(doc)),
+      _Command(Icons.wrap_text, 'Word wrap', () => setState(() => _wordWrap = !_wordWrap), checked: _wordWrap),
+      _Command(
+        Icons.data_array,
+        'Auto-close brackets',
+        () => setState(() => _autoClose = !_autoClose),
+        checked: _autoClose,
+      ),
+      for (final (index, other) in _docs.indexed)
+        if (other != doc) _Command(Icons.tab_outlined, 'Switch to ${other.name}', () => _activate(index)),
+      if (doc != null) _Command(Icons.tab_unselected, 'Close tab', () => _closeDoc(doc)),
+      _Command(Icons.close, 'Close editor', _closeEditor),
+    ];
   }
 
-  PopupMenuItem<VoidCallback> _menuItem(IconData icon, String label, VoidCallback? action) {
-    return PopupMenuItem<VoidCallback>(
-      value: action,
-      enabled: action != null,
-      child: Row(children: [Icon(icon, size: 20), const SizedBox(width: 12), Text(label)]),
+  Future<void> _openPalette(_EditorDoc? doc) async {
+    final command = await showModalBottomSheet<_Command>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: _bar,
+      builder: (_) => _CommandPalette(commands: _commands(doc)),
     );
+    if (command != null && mounted) command.run();
   }
 
   Widget _buildDrawer() {
@@ -849,6 +854,99 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
     }
     if (doc.review) return _ReviewView(key: ObjectKey(doc), doc: doc, onChanged: () => setState(() {}));
     return _EditorView(key: ObjectKey(doc), doc: doc, wordWrap: _wordWrap, autoClose: _autoClose);
+  }
+}
+
+class _Command {
+  final IconData icon;
+  final String label;
+  final VoidCallback run;
+  final bool? checked;
+
+  const _Command(this.icon, this.label, this.run, {this.checked});
+}
+
+class _CommandPalette extends StatefulWidget {
+  final List<_Command> commands;
+
+  const _CommandPalette({required this.commands});
+
+  @override
+  State<_CommandPalette> createState() => _CommandPaletteState();
+}
+
+class _CommandPaletteState extends State<_CommandPalette> {
+  final _query = TextEditingController();
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _query.text.trim().toLowerCase();
+    final commands = query.isEmpty
+        ? widget.commands
+        : widget.commands.where((c) => c.label.toLowerCase().contains(query)).toList();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: TextField(
+                controller: _query,
+                autocorrect: false,
+                onChanged: (_) => setState(() {}),
+                onSubmitted: (_) {
+                  if (commands.isNotEmpty) Navigator.pop(context, commands.first);
+                },
+                style: const TextStyle(color: _text),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Search commands',
+                  hintStyle: const TextStyle(color: _muted),
+                  prefixIcon: const Icon(Icons.search, size: 20, color: _muted),
+                  filled: true,
+                  fillColor: _bg,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
+            Flexible(
+              child: commands.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('No matching commands', style: TextStyle(color: _muted)),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.only(bottom: 16),
+                      itemCount: commands.length,
+                      itemBuilder: (context, index) {
+                        final command = commands[index];
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(command.icon, size: 20, color: _muted),
+                          title: Text(command.label, style: const TextStyle(color: _text, fontSize: 14.5)),
+                          trailing: command.checked == null
+                              ? null
+                              : Switch(value: command.checked!, onChanged: (_) => Navigator.pop(context, command)),
+                          onTap: () => Navigator.pop(context, command),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
