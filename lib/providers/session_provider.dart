@@ -387,6 +387,16 @@ class SessionProvider extends ChangeNotifier {
     _setLoading(false);
   }
 
+  Future<List<dynamic>> cloudCall(
+    String procedure, {
+    List<dynamic> args = const [],
+    Map<String, dynamic> kwargs = const {},
+  }) async {
+    final s = await _ensureSession();
+    final res = await s.call(procedure, args: args, kwargs: kwargs).timeout(DeskconnConfig.callTimeout);
+    return res.args;
+  }
+
   Future<void> loadDesktops() async {
     if (session == null) return;
 
