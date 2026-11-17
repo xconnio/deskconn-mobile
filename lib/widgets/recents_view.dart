@@ -104,7 +104,7 @@ class _RecentsViewState extends State<RecentsView> {
                                   animation: _controller,
                                   builder: (context, child) {
                                     final distance = _pageOffset(index).abs().clamp(0.0, 1.0);
-                                    return Transform.scale(scale: 1 - distance * 0.08, child: child);
+                                    return Transform.scale(scale: 1 - distance * 0.03, child: child);
                                   },
                                   child: Dismissible(
                                     key: ValueKey(app.id),

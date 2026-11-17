@@ -48,7 +48,7 @@ class _DeskconnLoaderState extends State<DeskconnLoader> with SingleTickerProvid
           child: Center(
             child: DeskconnMotion.reduce(context)
                 ? content
-                : FadeTransition(opacity: Tween(begin: 0.4, end: 1.0).animate(_controller), child: content),
+                : FadeTransition(opacity: Tween(begin: 0.6, end: 1.0).animate(_controller), child: content),
           ),
         ),
       ),

@@ -1,13 +1,11 @@
 import 'package:deskconn_mobile_app/theme/motion.dart';
 import 'package:flutter/material.dart';
 
-/// The app-wide page motion: fade in while settling from a slight zoom.
-Widget fadeScaleTransition(Animation<double> animation, Widget child, {BuildContext? context}) {
+Widget pageFadeTransition(Animation<double> animation, Widget child, {BuildContext? context}) {
   if (context != null && DeskconnMotion.reduce(context)) return child;
-  final curved = CurvedAnimation(parent: animation, curve: DeskconnMotion.standard);
   return FadeTransition(
-    opacity: curved,
-    child: ScaleTransition(scale: Tween(begin: 1.06, end: 1.0).animate(curved), child: child),
+    opacity: CurvedAnimation(parent: animation, curve: DeskconnMotion.standard),
+    child: child,
   );
 }
 
@@ -17,7 +15,7 @@ Widget overlayWithFixedBar(
   required Widget content,
   WidgetBuilder? bottomBar,
 }) {
-  final animated = fadeScaleTransition(animation, content, context: context);
+  final animated = pageFadeTransition(animation, content, context: context);
   if (bottomBar == null) return animated;
   return Column(
     children: [
@@ -42,7 +40,7 @@ class FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return fadeScaleTransition(animation, child, context: context);
+    return pageFadeTransition(animation, child, context: context);
   }
 }
 

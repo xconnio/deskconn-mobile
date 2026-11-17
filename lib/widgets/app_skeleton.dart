@@ -42,7 +42,7 @@ class _AppSkeletonBoxState extends State<AppSkeletonBox> with SingleTickerProvid
     if (DeskconnMotion.reduce(context)) return box;
 
     return FadeTransition(
-      opacity: Tween(begin: 0.4, end: 0.9).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+      opacity: Tween(begin: 0.55, end: 0.85).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       child: box,
     );
   }

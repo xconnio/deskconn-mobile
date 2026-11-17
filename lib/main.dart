@@ -297,7 +297,7 @@ class _SplashContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: DeskconnMotion.reduce(context) ? Duration.zero : DeskconnMotion.emphasise,
+      duration: DeskconnMotion.reduce(context) ? Duration.zero : DeskconnMotion.normal,
       curve: DeskconnMotion.standard,
       builder: (context, opacity, child) => Opacity(opacity: opacity, child: child),
       child: Column(
