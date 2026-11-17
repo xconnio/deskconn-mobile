@@ -4,6 +4,7 @@ import 'package:deskconn_mobile_app/screens/account_screen.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
+import 'package:deskconn_mobile_app/widgets/nav_destination.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
@@ -152,8 +153,7 @@ class _AppSidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: [
                 _NavTile(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
+                  destination: DeskconnDestination.settings,
                   selected: currentSection == AppShellSection.settings,
                   onTap: () => openSection(
                     context,
@@ -191,12 +191,11 @@ class _AppSidebar extends StatelessWidget {
 }
 
 class _NavTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
+  final DeskconnDestination destination;
   final bool selected;
   final VoidCallback onTap;
 
-  const _NavTile({required this.icon, required this.label, required this.selected, required this.onTap});
+  const _NavTile({required this.destination, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -207,9 +206,9 @@ class _NavTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: ListTile(
-        leading: Icon(icon, color: selected ? selectedColor : defaultColor),
+        leading: Icon(destination.icon, color: selected ? selectedColor : defaultColor),
         title: Text(
-          label,
+          destination.label,
           style: TextStyle(
             color: selected ? selectedColor : defaultColor,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,

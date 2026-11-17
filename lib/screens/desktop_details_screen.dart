@@ -32,6 +32,7 @@ import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/screens/settings_screen.dart';
 import 'package:deskconn_mobile_app/widgets/app_dock.dart';
+import 'package:deskconn_mobile_app/widgets/nav_destination.dart';
 import 'package:deskconn_mobile_app/widgets/floating_window.dart';
 import 'package:deskconn_mobile_app/widgets/recents_view.dart';
 import 'package:flutter/material.dart';
@@ -1801,22 +1802,19 @@ class _DesktopNavBarState extends State<_DesktopNavBar> {
             child: Row(
               children: [
                 _DesktopNavBarItem(
-                  icon: Icons.desktop_windows_outlined,
-                  label: 'Machines',
+                  destination: DeskconnDestination.machines,
                   color: widget.machinesSelected ? selectedColor : unselectedColor,
                   onTap: widget.onMachineTap,
                   selected: widget.machinesSelected,
                 ),
                 _DesktopNavBarItem(
-                  icon: Icons.grid_view_rounded,
-                  label: 'Apps',
+                  destination: DeskconnDestination.apps,
                   color: widget.settingsSelected || widget.machinesSelected ? unselectedColor : selectedColor,
                   onTap: widget.onWindowsTap,
                   selected: !widget.settingsSelected && !widget.machinesSelected,
                 ),
                 _DesktopNavBarItem(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
+                  destination: DeskconnDestination.settings,
                   color: widget.settingsSelected ? selectedColor : unselectedColor,
                   onTap: widget.onSettingsTap,
                   selected: widget.settingsSelected,
@@ -1831,15 +1829,13 @@ class _DesktopNavBarState extends State<_DesktopNavBar> {
 }
 
 class _DesktopNavBarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
+  final DeskconnDestination destination;
   final Color color;
   final VoidCallback onTap;
   final bool selected;
 
   const _DesktopNavBarItem({
-    required this.icon,
-    required this.label,
+    required this.destination,
     required this.color,
     required this.onTap,
     this.selected = false,
@@ -1857,10 +1853,10 @@ class _DesktopNavBarItem extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 20, color: color),
+                Icon(destination.icon, size: 20, color: color),
                 const SizedBox(height: 2),
                 Text(
-                  label,
+                  destination.label,
                   style: DeskconnText.caption.copyWith(
                     color: color,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,

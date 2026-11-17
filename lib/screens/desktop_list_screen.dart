@@ -7,6 +7,6 @@ class DesktopListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AppShell(title: 'Desktops', currentSection: AppShellSection.desktops, body: MachineGrid());
+    return const AppShell(title: 'Machines', currentSection: AppShellSection.desktops, body: MachineGrid());
   }
 }
