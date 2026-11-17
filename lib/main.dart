@@ -19,6 +19,7 @@ import 'package:deskconn_mobile_app/screens/share_upload_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
 import 'package:deskconn_mobile_app/theme/app_theme.dart';
 import 'package:deskconn_mobile_app/theme/motion.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/system_ui.dart';
 import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/theme/typography.dart';
@@ -246,7 +247,7 @@ class _ReconnectingBanner extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
-        Positioned.fill(child: Container(color: Colors.black.withValues(alpha: 0.35))),
+        Positioned.fill(child: Container(color: DeskconnOverlay.scrim)),
         Positioned(
           top: 0,
           left: 0,

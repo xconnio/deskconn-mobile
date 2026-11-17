@@ -1716,7 +1716,8 @@ class _WallpaperSwatch extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     child,
-                    if (selected) const Center(child: Icon(Icons.check_circle, color: Colors.white, size: 26)),
+                    if (selected)
+                      const Center(child: Icon(Icons.check_circle, color: DeskconnOverlay.foreground, size: 26)),
                   ],
                 ),
               ),

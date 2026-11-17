@@ -216,7 +216,7 @@ class _EditorFileTreeState extends State<EditorFileTree> {
                     relative.substring(0, slash),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: DeskconnText.body.copyWith(color: theme.hintColor, fontSize: 12),
+                    style: DeskconnText.caption.copyWith(color: theme.hintColor),
                   ),
               ],
             ),

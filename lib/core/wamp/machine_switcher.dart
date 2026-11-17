@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:deskconn_mobile_app/core/responsive.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/screens/access_management_screen.dart';
+import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/page_transitions.dart';
 import 'package:deskconn_mobile_app/widgets/machine_grid.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +18,7 @@ Future<void> switchMachine(BuildContext context, {String? currentRealm, WidgetBu
   return navigator.push<void>(
     PageRouteBuilder<void>(
       opaque: false,
-      barrierColor: Colors.black54,
+      barrierColor: DeskconnOverlay.barrier,
       transitionDuration: const Duration(milliseconds: 250),
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (routeContext, animation, _) => overlayWithFixedBar(
@@ -49,7 +50,7 @@ class MachinesScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Machines'),
         backgroundColor: overlay ? Colors.transparent : null,
-        foregroundColor: overlay ? Colors.white : null,
+        foregroundColor: overlay ? DeskconnOverlay.foreground : null,
         surfaceTintColor: overlay ? Colors.transparent : null,
         scrolledUnderElevation: overlay ? 0 : null,
         actions: [
