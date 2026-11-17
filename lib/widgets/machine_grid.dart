@@ -282,6 +282,13 @@ class _MachineGridState extends State<MachineGrid> {
             mainAxisSpacing: 20,
             childAspectRatio: 1.3,
           )
+        : breakpointOf(context) == DeskconnBreakpoint.medium
+        ? const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+            childAspectRatio: 1.1,
+          )
         : const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 14,
