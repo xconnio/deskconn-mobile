@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -114,6 +115,7 @@ class _EditorDoc {
   String? path;
   final CodeLineEditingController controller = CodeLineEditingController();
   late final CodeFindController find = CodeFindController(controller);
+  final CodeScrollController scroll = CodeScrollController();
   String original = '';
   GitOriginal git = GitOriginal.none;
   bool gitLoaded = false;
@@ -145,6 +147,7 @@ class _EditorDoc {
   void dispose() {
     refreshTimer?.cancel();
     find.dispose();
+    scroll.dispose();
     controller.dispose();
   }
 }
@@ -172,6 +175,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
   String? _folder;
   bool _wordWrap = false;
   bool _autoClose = true;
+  bool _minimap = false;
   bool _keyboardOpen = false;
 
   _EditorDoc? get _doc => _docs.isEmpty ? null : _docs[_active.clamp(0, _docs.length - 1)];
@@ -679,6 +683,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
         ),
       if (doc != null && path != null) _Command(Icons.refresh, 'Reload', () => _reload(doc)),
       _Command(Icons.wrap_text, 'Word wrap', () => setState(() => _wordWrap = !_wordWrap), checked: _wordWrap),
+      _Command(Icons.view_sidebar_outlined, 'Minimap', () => setState(() => _minimap = !_minimap), checked: _minimap),
       _Command(
         Icons.data_array,
         'Auto-close brackets',
@@ -853,7 +858,7 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
       return _Message(icon: Icons.error_outline, message: doc.loadError!, action: ('Retry', () => _load(doc)));
     }
     if (doc.review) return _ReviewView(key: ObjectKey(doc), doc: doc, onChanged: () => setState(() {}));
-    return _EditorView(key: ObjectKey(doc), doc: doc, wordWrap: _wordWrap, autoClose: _autoClose);
+    return _EditorView(key: ObjectKey(doc), doc: doc, wordWrap: _wordWrap, autoClose: _autoClose, minimap: _minimap);
   }
 }
 
@@ -954,16 +959,24 @@ class _EditorView extends StatelessWidget {
   final _EditorDoc doc;
   final bool wordWrap;
   final bool autoClose;
+  final bool minimap;
 
-  const _EditorView({super.key, required this.doc, required this.wordWrap, required this.autoClose});
+  const _EditorView({
+    super.key,
+    required this.doc,
+    required this.wordWrap,
+    required this.autoClose,
+    required this.minimap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final lang = _languageFor(doc.name);
     final mode = lang == null ? null : builtinAllLanguages[lang];
-    return CodeEditor(
+    final editor = CodeEditor(
       controller: doc.controller,
       findController: doc.find,
+      scrollController: doc.scroll,
       findBuilder: (context, controller, readOnly) => _FindBar(controller: controller),
       wordWrap: wordWrap,
       autocompleteSymbols: autoClose,
@@ -1005,7 +1018,108 @@ class _EditorView extends StatelessWidget {
       ),
       leadingDivider: Container(width: 0.5, color: _border),
     );
+    if (!minimap) return editor;
+    return Row(
+      children: [
+        Expanded(child: editor),
+        _Minimap(controller: doc.controller, scroller: doc.scroll.verticalScroller),
+      ],
+    );
   }
+}
+
+class _Minimap extends StatelessWidget {
+  final CodeLineEditingController controller;
+  final ScrollController scroller;
+
+  const _Minimap({required this.controller, required this.scroller});
+
+  void _jump(double dy, double height) {
+    if (!scroller.hasClients || height <= 0) return;
+    final position = scroller.position;
+    final fraction = (dy / height).clamp(0.0, 1.0);
+    final target = fraction * (position.maxScrollExtent + position.viewportDimension) - position.viewportDimension / 2;
+    scroller.jumpTo(target.clamp(0.0, position.maxScrollExtent));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (details) => _jump(details.localPosition.dy, constraints.maxHeight),
+        onVerticalDragStart: (details) => _jump(details.localPosition.dy, constraints.maxHeight),
+        onVerticalDragUpdate: (details) => _jump(details.localPosition.dy, constraints.maxHeight),
+        child: Container(
+          width: 44,
+          decoration: const BoxDecoration(
+            color: _bar,
+            border: Border(left: BorderSide(color: _border, width: 0.5)),
+          ),
+          child: RepaintBoundary(
+            child: CustomPaint(
+              size: Size(44, constraints.maxHeight),
+              painter: _MinimapPainter(controller: controller, scroller: scroller),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MinimapPainter extends CustomPainter {
+  final CodeLineEditingController controller;
+  final ScrollController scroller;
+
+  _MinimapPainter({required this.controller, required this.scroller})
+    : super(repaint: Listenable.merge([controller, scroller]));
+
+  static const _rowHeight = 2.0;
+  static const _charWidth = 0.6;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final lines = controller.codeLines;
+    final count = lines.length;
+    if (count == 0 || size.height <= 0) return;
+    final rowHeight = math.min(_rowHeight, size.height / count);
+    final rows = math.min(count, (size.height / math.max(rowHeight, 1)).floor());
+    final step = count / rows;
+    final ink = Paint()..color = _muted.withValues(alpha: 0.55);
+    final cursor = controller.selection.extentIndex;
+    for (var row = 0; row < rows; row++) {
+      final index = (row * step).floor();
+      final text = lines[index].text;
+      if (text.isEmpty) continue;
+      final indent = text.length - text.trimLeft().length;
+      final width = math.min(text.trimRight().length - indent, 60) * _charWidth;
+      if (width <= 0) continue;
+      final top = row * size.height / rows;
+      canvas.drawRect(
+        Rect.fromLTWH(4 + math.min(indent, 24) * _charWidth, top, width, math.max(rowHeight - 0.5, 0.75)),
+        ink,
+      );
+    }
+    final mark = Paint()..color = _accent;
+    canvas.drawRect(Rect.fromLTWH(0, cursor / count * size.height, size.width, 1.5), mark);
+    if (scroller.hasClients) {
+      final position = scroller.position;
+      final total = position.maxScrollExtent + position.viewportDimension;
+      if (total > 0) {
+        final top = position.pixels / total * size.height;
+        final height = math.max(position.viewportDimension / total * size.height, 12.0);
+        canvas.drawRect(
+          Rect.fromLTWH(0, top, size.width, height),
+          Paint()..color = Colors.white.withValues(alpha: 0.08),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MinimapPainter oldDelegate) =>
+      oldDelegate.controller != controller || oldDelegate.scroller != scroller;
 }
 
 const _hashCommentLanguages = {
