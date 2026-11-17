@@ -10,6 +10,7 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
 import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
+import 'package:deskconn_mobile_app/l10n/generated/app_localizations.dart';
 import 'package:deskconn_mobile_app/providers/auth_provider.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/providers/theme_provider.dart';
@@ -132,6 +133,8 @@ class DeskconnApp extends StatelessWidget {
             theme: DeskconnTheme.light(),
             darkTheme: DeskconnTheme.dark(),
             themeMode: theme.mode,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             onNavigationNotification: keepFrameworkHandlingBack,
             builder: (context, child) {
               final brightness = Theme.of(context).brightness;
