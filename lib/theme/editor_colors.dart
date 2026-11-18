@@ -14,4 +14,5 @@ class DeskconnEditor {
   static const removed = Color(0xFFF07178);
   static const lineNumber = Color(0xFF5E5F58);
   static const cursorLine = Color(0x0AFFFFFF);
+  static const minimapThumb = Color(0x14FFFFFF);
 }
