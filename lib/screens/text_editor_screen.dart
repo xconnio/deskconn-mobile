@@ -202,28 +202,30 @@ class _TextEditorScreenState extends State<TextEditorScreen> with WidgetsBinding
     super.dispose();
   }
 
+  Future<FileExplorerController> _acquireExplorer() async {
+    final config = widget.config!;
+    final connection =
+        DesktopConnectionManager().get(config.realm) ??
+        await DesktopConnectionManager().acquire(
+          realm: config.realm,
+          authId: config.authId,
+          privateKey: config.privateKey,
+          webRtcEnabled: config.webRtcEnabled,
+        );
+    return connection.explorerController ??= FileExplorerController(
+      connection.session,
+      config.realm,
+      webRtcSession: connection.webRtcSession,
+    );
+  }
+
   Future<void> _connect() async {
     setState(() => _connectError = null);
     try {
-      var explorer = widget.controller;
-      if (explorer == null) {
-        final config = widget.config!;
-        final connection =
-            DesktopConnectionManager().get(config.realm) ??
-            await DesktopConnectionManager().acquire(
-              realm: config.realm,
-              authId: config.authId,
-              privateKey: config.privateKey,
-              webRtcEnabled: config.webRtcEnabled,
-            );
-        explorer = connection.explorerController ??= FileExplorerController(
-          connection.session,
-          config.realm,
-          webRtcSession: connection.webRtcSession,
-        );
-      }
+      final fixed = widget.controller;
+      final explorer = fixed ?? await _acquireExplorer();
       if (!mounted) return;
-      setState(() => _files = EditorFiles(explorer!));
+      setState(() => _files = EditorFiles(explorer, reconnect: fixed == null ? _acquireExplorer : null));
       if (_docs.isEmpty) {
         final path = widget.path;
         if (path != null) {

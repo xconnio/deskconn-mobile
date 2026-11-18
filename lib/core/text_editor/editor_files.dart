@@ -56,20 +56,39 @@ bool isEditConflictError(Object error) => error.toString().toLowerCase().contain
 String buildEditPatch(String original, String edited) =>
     dmp.patchToText(dmp.patchMake(original, b: dmp.diff(original, edited, checklines: false)));
 
+bool isClosedResourceError(Object error) => error.toString().toLowerCase().contains('closed or invalid resource');
+
 class EditorFiles {
-  EditorFiles(this.explorer);
+  EditorFiles(this._explorer, {this.reconnect});
 
-  final FileExplorerController explorer;
+  FileExplorerController _explorer;
+  final Future<FileExplorerController> Function()? reconnect;
 
-  SessionEncryption get _crypto => SessionEncryption.deskconnd(explorer.session);
+  FileExplorerController get explorer => _explorer;
 
-  bool get canCreateFiles => explorer.session.isConnected();
+  bool get canCreateFiles => reconnect != null || _explorer.session.isConnected();
 
-  Future<FileBrowseResult> browse(String path) => explorer.browse(path);
+  Future<T> _run<T>(Future<T> Function(FileExplorerController explorer) action) async {
+    final reconnect = this.reconnect;
+    if (reconnect != null && !_explorer.session.isConnected()) _explorer = await reconnect();
+    try {
+      return await action(_explorer);
+    } catch (e) {
+      if (reconnect == null || !isClosedResourceError(e)) rethrow;
+      _explorer = await reconnect();
+      return action(_explorer);
+    }
+  }
 
-  Future<String> read(String path, {void Function(int bytes)? onProgress}) async {
+  Future<FileBrowseResult> browse(String path) => _run((explorer) => explorer.browse(path));
+
+  Future<String> read(String path, {void Function(int bytes)? onProgress}) =>
+      _run((explorer) => _read(explorer, path, onProgress));
+
+  Future<String> _read(FileExplorerController explorer, String path, void Function(int bytes)? onProgress) async {
+    final crypto = SessionEncryption.deskconnd(explorer.session);
     for (var attempt = 0; ; attempt++) {
-      final keys = await _crypto.keys();
+      final keys = await crypto.keys();
       final builder = BytesBuilder(copy: false);
       var tooLarge = false;
       try {
@@ -83,7 +102,7 @@ class EditorFiles {
         return utf8.decode(builder.takeBytes(), allowMalformed: true);
       } catch (e) {
         if (attempt == 0 && isKeysRejectedError(e)) {
-          _crypto.invalidate(keys);
+          crypto.invalidate(keys);
           continue;
         }
         rethrow;
@@ -91,9 +110,10 @@ class EditorFiles {
     }
   }
 
-  Future<void> save(String path, String original, String edited) => _crypto.call(
-    DeskconnProcedures.deskconndFileEdit,
-    arg: {'path': path, 'patch': buildEditPatch(original, edited)},
+  Future<void> save(String path, String original, String edited) => _run(
+    (explorer) => SessionEncryption.deskconnd(
+      explorer.session,
+    ).call(DeskconnProcedures.deskconndFileEdit, arg: {'path': path, 'patch': buildEditPatch(original, edited)}),
   );
 
   Future<void> create(String path, String content) async {
@@ -106,7 +126,7 @@ class EditorFiles {
     final file = File('${tempDir.path}/$name');
     try {
       await file.writeAsString(content);
-      await explorer.upload(file.path, dir);
+      await _run((explorer) => explorer.upload(file.path, dir));
     } finally {
       await tempDir.delete(recursive: true).catchError((Object _) => tempDir);
     }
@@ -114,7 +134,11 @@ class EditorFiles {
 
   Future<GitOriginal> gitOriginal(String path) async {
     try {
-      final result = await _crypto.call(DeskconnProcedures.deskconndGitOriginal, arg: {'path': path});
+      final result = await _run(
+        (explorer) => SessionEncryption.deskconnd(
+          explorer.session,
+        ).call(DeskconnProcedures.deskconndGitOriginal, arg: {'path': path}),
+      );
       return GitOriginal.fromJson(Map<String, dynamic>.from(result as Map));
     } catch (_) {
       return GitOriginal.none;
@@ -124,7 +148,12 @@ class EditorFiles {
   Future<Map<String, GitFileStatus>> gitStatus(String path) async {
     try {
       final result = Map<String, dynamic>.from(
-        await _crypto.call(DeskconnProcedures.deskconndGitStatus, arg: {'path': path}) as Map,
+        await _run(
+              (explorer) => SessionEncryption.deskconnd(
+                explorer.session,
+              ).call(DeskconnProcedures.deskconndGitStatus, arg: {'path': path}),
+            )
+            as Map,
       );
       return {
         for (final entry in (result['entries'] as List?) ?? const [])
