@@ -1109,10 +1109,7 @@ class _MinimapPainter extends CustomPainter {
       if (total > 0) {
         final top = position.pixels / total * size.height;
         final height = math.max(position.viewportDimension / total * size.height, 12.0);
-        canvas.drawRect(
-          Rect.fromLTWH(0, top, size.width, height),
-          Paint()..color = Colors.white.withValues(alpha: 0.08),
-        );
+        canvas.drawRect(Rect.fromLTWH(0, top, size.width, height), Paint()..color = _text.withValues(alpha: 0.08));
       }
     }
   }
