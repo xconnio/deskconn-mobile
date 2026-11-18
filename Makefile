@@ -1,7 +1,5 @@
 install:
 	flutter pub get
-	flutter gen-l10n
-	@if [ -d lib/l10n/generated ]; then dart format --line-length 120 lib/l10n/generated > /dev/null; fi
 
 lint:
 	dart analyze --fatal-infos

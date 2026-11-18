@@ -50,6 +50,3 @@ app.*.map.json
 *.keystore
 *.b64
 key.properties
-
-# Generated localizations
-lib/l10n/generated/

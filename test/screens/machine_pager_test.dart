@@ -1,4 +1,3 @@
-import 'package:deskconn_mobile_app/l10n/generated/app_localizations.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/providers/theme_provider.dart';
 import 'package:deskconn_mobile_app/screens/desktop_details_screen.dart';
@@ -30,8 +29,6 @@ class _Harness {
         ],
         child: MaterialApp(
           theme: DeskconnTheme.light(),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
           home: MachinePager(
             desktop: _desktops.firstWhere((d) => d['realm'] == realm),
             pageBuilder: (desktop, handle) {
