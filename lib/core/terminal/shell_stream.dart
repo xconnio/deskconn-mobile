@@ -51,7 +51,7 @@ Future<ShellHandle> openShell(
   void Function() onClose, {
   bool closeSession = false,
 }) async {
-  final stream = await session.openRPCStream('io.xconn.deskconn.shell.stream');
+  final stream = await session.openRPCStream('com.deskconn.shell.stream');
   final enc = await Encryption.create();
   var closed = false;
   Timer? pingTimer;

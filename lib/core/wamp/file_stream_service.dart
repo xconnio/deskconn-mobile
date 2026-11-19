@@ -29,7 +29,7 @@ class _FileStreamChannel {
   static Future<_FileStreamChannel> open(Session session, String operation) async => _FileStreamChannel(
     await RPCFeatureStream.open(
       session,
-      'io.xconn.deskconn.file.stream.$operation',
+      'com.deskconn.file.stream.$operation',
       input: operation == 'init' || operation == 'write',
     ),
   );

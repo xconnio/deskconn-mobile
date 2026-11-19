@@ -55,24 +55,24 @@ class AccessApi {
     return result.isEmpty ? null : asJson(result.first);
   }
 
-  Future<Json?> myMachineAccess(String desktopId) => _one('io.xconn.deskconn.desktop.access.user.me', [desktopId]);
+  Future<Json?> myMachineAccess(String desktopId) => _one('com.deskconn.desktop.access.user.me', [desktopId]);
 
-  Future<List<Json>> machineUsers(String desktopId) => _list('io.xconn.deskconn.desktop.access.user.list', [desktopId]);
+  Future<List<Json>> machineUsers(String desktopId) => _list('com.deskconn.desktop.access.user.list', [desktopId]);
 
   Future<void> setUserRole(String accessId, String role) =>
-      _call('io.xconn.deskconn.desktop.access.user.update', args: [accessId, role]);
+      _call('com.deskconn.desktop.access.user.update', args: [accessId, role]);
 
-  Future<void> revokeUser(String accessId) => _call('io.xconn.deskconn.desktop.access.user.revoke', args: [accessId]);
+  Future<void> revokeUser(String accessId) => _call('com.deskconn.desktop.access.user.revoke', args: [accessId]);
 
   Future<void> inviteToMachine(String desktopId, String email, String role) =>
-      _call('io.xconn.deskconn.desktop.invitation.user.create', args: [desktopId, email, role]);
+      _call('com.deskconn.desktop.invitation.user.create', args: [desktopId, email, role]);
 
-  Future<List<Json>> machineInvitesInbox() => _list('io.xconn.deskconn.desktop.invitation.inbox.list');
+  Future<List<Json>> machineInvitesInbox() => _list('com.deskconn.desktop.invitation.inbox.list');
 
-  Future<List<Json>> machineInvitesOutbox() => _list('io.xconn.deskconn.desktop.invitation.outbox.list');
+  Future<List<Json>> machineInvitesOutbox() => _list('com.deskconn.desktop.invitation.outbox.list');
 
   Future<void> respondToMachineInvite(String id, bool accept) =>
-      _call('io.xconn.deskconn.desktop.invitation.respond', args: [id, accept ? 'accepted' : 'rejected']);
+      _call('com.deskconn.desktop.invitation.respond', args: [id, accept ? 'accepted' : 'rejected']);
 
-  Future<void> cancelMachineInvite(String id) => _call('io.xconn.deskconn.desktop.invitation.user.cancel', args: [id]);
+  Future<void> cancelMachineInvite(String id) => _call('com.deskconn.desktop.invitation.user.cancel', args: [id]);
 }

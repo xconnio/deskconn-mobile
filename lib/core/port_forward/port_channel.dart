@@ -61,8 +61,8 @@ class PortChannel {
 
   static Future<PortChannel> open(Session session, String operation) async {
     final procedure = switch (operation) {
-      portForwardChannelLabel => 'io.xconn.deskconn.port.forward.stream',
-      portReverseChannelLabel => 'io.xconn.deskconn.port.reverse.stream',
+      portForwardChannelLabel => 'com.deskconn.port.forward.stream',
+      portReverseChannelLabel => 'com.deskconn.port.reverse.stream',
       _ => throw ArgumentError.value(operation, 'operation'),
     };
     return PortChannel._(await RPCFeatureStream.open(session, procedure));

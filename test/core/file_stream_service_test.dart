@@ -39,7 +39,7 @@ class _Peer implements Session {
   @override
   Future<RPCByteStream> openRPCStream(String procedure, {bool input = false}) async {
     final operation = procedure.split('.').last;
-    expect(procedure, 'io.xconn.deskconn.file.stream.$operation');
+    expect(procedure, 'com.deskconn.file.stream.$operation');
     expect(input, operation == 'init' || operation == 'write');
     final channel = _FileChannel(contents, operation);
     channels.add(channel);
