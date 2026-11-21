@@ -985,8 +985,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
   }
 
   String get _connectionStatusLabel => switch (_connectionStatus) {
-    DesktopConnectionStatus.checking => 'Connecting',
-    DesktopConnectionStatus.p2p => 'P2P',
+    DesktopConnectionStatus.checking => 'Connecting…',
+    DesktopConnectionStatus.p2p => 'Direct',
     DesktopConnectionStatus.routed => 'Routed',
     DesktopConnectionStatus.offline => 'Offline',
   };
@@ -1639,8 +1639,8 @@ class _ConnectionStatusChip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final palette = DeskconnPalette.of(context);
     final (dotColor, label) = switch (status) {
-      DesktopConnectionStatus.checking => (palette.subtle, 'Connecting'),
-      DesktopConnectionStatus.p2p => (palette.statusOnline, 'P2P'),
+      DesktopConnectionStatus.checking => (palette.subtle, 'Connecting…'),
+      DesktopConnectionStatus.p2p => (palette.statusOnline, 'Direct'),
       DesktopConnectionStatus.routed => (palette.statusRouted, 'Routed'),
       DesktopConnectionStatus.offline => (palette.statusOffline, 'Offline'),
     };

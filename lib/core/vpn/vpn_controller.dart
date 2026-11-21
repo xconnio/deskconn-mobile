@@ -178,7 +178,7 @@ Future<VpnLink> openDesktopVpnLink(DesktopSessionLaunchConfig config) async {
   final rtc = connection.webRtcSession;
   if (rtc == null) {
     await DesktopConnectionManager().releaseStandalone(connection);
-    throw const VpnException('The VPN needs a direct (P2P) connection to the desktop.');
+    throw const VpnException('The VPN needs a direct connection to the desktop.');
   }
   try {
     final channel = await rtc.extraChannel(kVpnChannelLabel).timeout(kVpnHandshakeTimeout);

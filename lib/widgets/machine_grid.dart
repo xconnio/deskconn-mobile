@@ -228,10 +228,10 @@ class _MachineGridState extends State<MachineGrid> {
     if (status == _RowStatus.connecting) return false;
 
     final (title, description) = switch (status) {
-      _RowStatus.p2p => ('Connected (P2P)', 'Using a direct peer-to-peer connection.'),
+      _RowStatus.p2p => ('Connected (Direct)', 'Using a direct connection.'),
       _RowStatus.routed => ('Connected (Routed)', 'Using a routed connection through the server.'),
       _RowStatus.offline => ('Offline', 'Could not reach this desktop.'),
-      _RowStatus.connecting => ('Connecting', ''),
+      _RowStatus.connecting => ('Connecting…', ''),
     };
 
     final action = await showDialog<String>(
@@ -242,9 +242,9 @@ class _MachineGridState extends State<MachineGrid> {
           content: Text(description),
           actions: [
             if (status != _RowStatus.p2p)
-              TextButton(onPressed: () => Navigator.of(dialogContext).pop('p2p'), child: const Text('Retry P2P')),
+              TextButton(onPressed: () => Navigator.of(dialogContext).pop('p2p'), child: const Text('Retry direct')),
             if (status != _RowStatus.routed)
-              TextButton(onPressed: () => Navigator.of(dialogContext).pop('routed'), child: const Text('Use Routed')),
+              TextButton(onPressed: () => Navigator.of(dialogContext).pop('routed'), child: const Text('Try routed')),
             TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Close')),
           ],
         );
@@ -468,9 +468,9 @@ class _StatusDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = DeskconnPalette.of(context);
     final (dotColor, label) = switch (status) {
-      _RowStatus.connecting => (palette.subtle, 'Connecting'),
-      _RowStatus.p2p => (palette.statusOnline, 'Connected (P2P)'),
-      _RowStatus.routed => (palette.statusRouted, 'Connected (routed)'),
+      _RowStatus.connecting => (palette.subtle, 'Connecting…'),
+      _RowStatus.p2p => (palette.statusOnline, 'Connected (Direct)'),
+      _RowStatus.routed => (palette.statusRouted, 'Connected (Routed)'),
       _RowStatus.offline => (palette.statusOffline, 'Offline'),
     };
 
