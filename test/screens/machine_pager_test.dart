@@ -35,6 +35,7 @@ class _Harness {
               final realm = desktop['realm'] as String;
               handles[realm] = handle;
               handle.openRecents = () => recentsOpened.add(realm);
+              WidgetsBinding.instance.addPostFrameCallback((_) => handle.status.value = DesktopConnectionStatus.routed);
               return ColoredBox(
                 color: Colors.blueGrey,
                 child: Center(child: Text('page ${desktop['name']}')),

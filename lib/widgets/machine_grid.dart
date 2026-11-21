@@ -264,10 +264,6 @@ class _MachineGridState extends State<MachineGrid> {
     if (!mounted) return success;
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not connect to desktop.')));
-    } else if (webRtcEnabled && _statusFor(realm) == _RowStatus.routed) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('P2P unavailable, connected via routed instead.')));
     }
     return success;
   }

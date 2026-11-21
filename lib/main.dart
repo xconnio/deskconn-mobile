@@ -9,7 +9,6 @@ import 'package:deskconn_mobile_app/core/terminal/terminal_registry.dart';
 import 'package:deskconn_mobile_app/core/terminal/terminal_screen.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/last_used_realm_store.dart';
-import 'package:deskconn_mobile_app/core/wamp/machine_switcher.dart';
 import 'package:deskconn_mobile_app/providers/auth_provider.dart';
 import 'package:deskconn_mobile_app/providers/session_provider.dart';
 import 'package:deskconn_mobile_app/providers/theme_provider.dart';
@@ -19,9 +18,7 @@ import 'package:deskconn_mobile_app/screens/share_upload_screen.dart';
 import 'package:deskconn_mobile_app/screens/sign_in_screen.dart';
 import 'package:deskconn_mobile_app/theme/app_theme.dart';
 import 'package:deskconn_mobile_app/theme/motion.dart';
-import 'package:deskconn_mobile_app/theme/overlay.dart';
 import 'package:deskconn_mobile_app/theme/system_ui.dart';
-import 'package:deskconn_mobile_app/theme/type_scale.dart';
 import 'package:deskconn_mobile_app/theme/typography.dart';
 import 'package:deskconn_mobile_app/widgets/exit_guard.dart';
 import 'package:deskconn_mobile_app/widgets/logo.dart';
@@ -139,154 +136,13 @@ class DeskconnApp extends StatelessWidget {
 
               return AnnotatedRegion<SystemUiOverlayStyle>(
                 value: DeskconnSystemUi.overlayStyle(brightness),
-                child: _ReconnectingOverlay(child: child ?? const SizedBox.shrink()),
+                child: child ?? const SizedBox.shrink(),
               );
             },
             home: const AppBootstrap(),
           );
         },
       ),
-    );
-  }
-}
-
-class _ReconnectingOverlay extends StatefulWidget {
-  final Widget child;
-
-  const _ReconnectingOverlay({required this.child});
-
-  @override
-  State<_ReconnectingOverlay> createState() => _ReconnectingOverlayState();
-}
-
-class _ReconnectingOverlayState extends State<_ReconnectingOverlay> {
-  static const _bannerDelay = Duration(seconds: 6);
-
-  OverlayEntry? _entry;
-  bool _visible = false;
-  Timer? _bannerTimer;
-  StreamSubscription<bool>? _transportSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    DesktopConnectionManager().isReconnecting.addListener(_sync);
-    ConnectivityService().addListener(_sync);
-    _transportSubscription = DesktopConnectionManager().onTransportChanged.listen(_notifyTransportChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
-  }
-
-  @override
-  void dispose() {
-    DesktopConnectionManager().isReconnecting.removeListener(_sync);
-    ConnectivityService().removeListener(_sync);
-    _transportSubscription?.cancel();
-    _bannerTimer?.cancel();
-    _entry?.remove();
-    super.dispose();
-  }
-
-  bool get _reconnecting => DesktopConnectionManager().isReconnecting.value && ConnectivityService().hasConnection;
-
-  void _sync() {
-    if (!_reconnecting) {
-      _bannerTimer?.cancel();
-      _bannerTimer = null;
-      _apply(false);
-      return;
-    }
-    if (_visible || _bannerTimer != null) return;
-    _bannerTimer = Timer(_bannerDelay, () {
-      _bannerTimer = null;
-      if (_reconnecting) _apply(true);
-    });
-  }
-
-  void _notifyTransportChanged(bool isP2P) {
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(
-        content: Text(isP2P ? 'Connected directly (P2P)' : 'Connected through relay'),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  void _apply(bool show) {
-    if (show == _visible) return;
-    _visible = show;
-
-    if (show) {
-      final overlay = navigatorKey.currentState?.overlay;
-      if (overlay == null) return;
-      _entry = OverlayEntry(builder: (_) => _ReconnectingBanner(onSwitchMachine: _openSwitcher));
-      overlay.insert(_entry!);
-    } else {
-      _entry?.remove();
-      _entry = null;
-    }
-  }
-
-  Future<void> _openSwitcher() async {
-    _apply(false);
-    final ctx = navigatorKey.currentContext;
-    if (ctx != null) await switchMachine(ctx);
-    _sync();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
-}
-
-class _ReconnectingBanner extends StatelessWidget {
-  final VoidCallback onSwitchMachine;
-
-  const _ReconnectingBanner({required this.onSwitchMachine});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Stack(
-      children: [
-        Positioned.fill(child: Container(color: DeskconnOverlay.scrim)),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SafeArea(
-            bottom: false,
-            child: Material(
-              color: colorScheme.secondaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onSecondaryContainer),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Reconnecting…',
-                        style: DeskconnText.label.copyWith(color: colorScheme.onSecondaryContainer),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: onSwitchMachine,
-                      child: Text(
-                        'Switch Machine',
-                        style: TextStyle(color: colorScheme.onSecondaryContainer, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
