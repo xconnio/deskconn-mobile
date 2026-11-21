@@ -297,12 +297,35 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     unawaited(_loadDockAutoHide());
     unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
+    DesktopConnectionManager().reconnectingRealms.addListener(_handleReconnecting);
     WidgetsBinding.instance.addObserver(this);
     final handle = widget.handle;
     if (handle != null) {
       handle.openRecents = () => _openRecents(context);
       handle.openMachines = _openMachines;
       _windowManager.addListener(_syncHandle);
+    }
+  }
+
+  bool _reconnecting = false;
+
+  void _handleReconnecting() {
+    final realm = _realm;
+    if (realm == null || !mounted) return;
+    final reconnecting = DesktopConnectionManager().reconnectingRealms.value.contains(realm);
+    if (reconnecting == _reconnecting) return;
+    _reconnecting = reconnecting;
+    if (reconnecting) {
+      if (_connectionStatus != DesktopConnectionStatus.checking) {
+        setState(() => _connectionStatus = DesktopConnectionStatus.checking);
+      }
+      return;
+    }
+    final connection = DesktopConnectionManager().get(realm);
+    if (connection != null && connection.isAgentOnline) {
+      setState(
+        () => _connectionStatus = connection.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed,
+      );
     }
   }
 
@@ -347,6 +370,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     ConnectivityService().removeListener(_handleConnectivityChanged);
+    DesktopConnectionManager().reconnectingRealms.removeListener(_handleReconnecting);
     final realm = _realm;
     if (realm != null) DesktopConnectionManager().get(realm)?.onDisconnected = null;
     _windowManager.dispose();
@@ -1663,11 +1687,14 @@ class _ConnectionStatusChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-              ),
+              if (status == DesktopConnectionStatus.checking)
+                SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: textColor))
+              else
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+                ),
               const SizedBox(width: 6),
               Text.rich(
                 TextSpan(

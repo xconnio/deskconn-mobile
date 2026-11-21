@@ -75,11 +75,7 @@ class DesktopConnectionManager {
   final Set<DesktopConnection> _standaloneConnections = {};
   final Expando<String> _standaloneRealms = Expando();
 
-  final ValueNotifier<bool> isReconnecting = ValueNotifier(false);
-  final Map<String, bool> _lastTransportIsP2P = {};
-  final StreamController<bool> _transportChanges = StreamController.broadcast();
-
-  Stream<bool> get onTransportChanged => _transportChanges.stream;
+  final ValueNotifier<Set<String>> reconnectingRealms = ValueNotifier(const {});
 
   static const _webRtcFailureFallbackThreshold = 2;
   static const _heartbeatInterval = Duration(seconds: 8);
@@ -101,7 +97,11 @@ class DesktopConnectionManager {
   }
 
   void _recomputeReconnecting() {
-    isReconnecting.value = _pendingConnections.keys.any(_everConnectedRealms.contains);
+    final realms = {
+      for (final key in _pendingConnections.keys)
+        if (_everConnectedRealms.contains(key)) key.substring('session:'.length),
+    };
+    if (!setEquals(realms, reconnectingRealms.value)) reconnectingRealms.value = realms;
   }
 
   static const _webRtcDisposeCooldown = Duration(seconds: 3);
@@ -222,9 +222,6 @@ class DesktopConnectionManager {
 
     _connections[key] = connection;
     _everConnectedRealms.add(key);
-    final previousIsP2P = _lastTransportIsP2P[realm];
-    _lastTransportIsP2P[realm] = connection.isP2P;
-    if (previousIsP2P != null && previousIsP2P != connection.isP2P) _transportChanges.add(connection.isP2P);
     _log('session cached realm=$realm p2p=${connection.isP2P} active=${_connections.length}');
 
     connection.session.onDisconnect(() {
