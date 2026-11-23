@@ -55,7 +55,7 @@ dependencies:
     git:
       url: https://github.com/xconnio/deskconn-app-engine
       path: dart
-      ref: 4fc5c19ff96998635ad94879fe406058da95dae4
+      ref: 22801e6f850f13e36e87a0d1163093ebb50e64e0
 
 
   crypto: any

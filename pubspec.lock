@@ -45,8 +45,8 @@ packages:
     dependency: "direct main"
     description:
       path: dart
-      ref: "4fc5c19ff96998635ad94879fe406058da95dae4"
-      resolved-ref: "4fc5c19ff96998635ad94879fe406058da95dae4"
+      ref: "22801e6f850f13e36e87a0d1163093ebb50e64e0"
+      resolved-ref: "22801e6f850f13e36e87a0d1163093ebb50e64e0"
       url: "https://github.com/xconnio/deskconn-app-engine"
     source: git
     version: "0.1.0"
@@ -1407,10 +1407,10 @@ packages:
     dependency: "direct main"
     description:
       name: xconn
-      sha256: f66684c4ea33c7365e23f25ad332716e3497f930feae198513860d848bb19cde
+      sha256: e2121eefb61f80c812a6d293911b20f2f1b9ba5bdef8bf74b55fa68384ea3326
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.0"
+    version: "0.6.6"
   xdg_directories:
     dependency: transitive
     description:
