@@ -45,8 +45,8 @@ packages:
     dependency: "direct main"
     description:
       path: dart
-      ref: "22801e6f850f13e36e87a0d1163093ebb50e64e0"
-      resolved-ref: "22801e6f850f13e36e87a0d1163093ebb50e64e0"
+      ref: "427d5a9fd8c822425cec1ec9023683b3d25a1494"
+      resolved-ref: "427d5a9fd8c822425cec1ec9023683b3d25a1494"
       url: "https://github.com/xconnio/deskconn-app-engine"
     source: git
     version: "0.1.0"
