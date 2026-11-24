@@ -757,6 +757,7 @@ class _TerminalPaneState extends State<TerminalPane> with WidgetsBindingObserver
                   theme: kTerminalTheme,
                   autofocus: _autofocus,
                   deleteDetection: defaultTargetPlatform == TargetPlatform.iOS,
+                  keyboardType: TextInputType.text,
                   textStyle: TerminalStyle(fontSize: _fontSize),
                 ),
               ),
