@@ -24,7 +24,7 @@ class ConnectivityService extends ChangeNotifier {
 
   Set<ConnectivityResult> _lastResults = {};
   Timer? _debounce;
-  static const _debounceDelay = Duration(milliseconds: 1500);
+  static const _debounceDelay = Duration(milliseconds: 400);
 
   void reportBackendReachable() {
     if (backendReachable) return;
@@ -65,13 +65,20 @@ class ConnectivityService extends ChangeNotifier {
     _lastResults = resultSet;
 
     final next = _hasAny(results);
-    if (next != hasConnection) {
+    final statusChanged = next != hasConnection;
+    if (statusChanged) {
       hasConnection = next;
+    }
+
+    if (statusChanged || pathChanged) {
       notifyListeners();
     }
 
-    if (pathChanged && next) _networkChangedController.add(null);
+    if (pathChanged && next) {
+      _networkChangedController.add(null);
+    }
   }
 
-  bool _hasAny(List<ConnectivityResult> results) => results.any((r) => r != ConnectivityResult.none);
+  bool _hasAny(List<ConnectivityResult> results) =>
+      results.isNotEmpty && results.any((r) => r != ConnectivityResult.none);
 }

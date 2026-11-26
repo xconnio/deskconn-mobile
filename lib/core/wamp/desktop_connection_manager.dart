@@ -58,6 +58,20 @@ class TerminalTabException implements Exception {
   String toString() => message;
 }
 
+class DesktopConnectionConfig {
+  final String realm;
+  final String authId;
+  final bool webRtcEnabled;
+  final String privateKey;
+
+  const DesktopConnectionConfig({
+    required this.realm,
+    required this.authId,
+    required this.webRtcEnabled,
+    required this.privateKey,
+  });
+}
+
 class DesktopConnectionManager {
   static final DesktopConnectionManager _instance = DesktopConnectionManager._();
   factory DesktopConnectionManager() => _instance;
@@ -74,6 +88,8 @@ class DesktopConnectionManager {
   final Map<String, int> _webRtcFailureCount = {};
   final Set<DesktopConnection> _standaloneConnections = {};
   final Expando<String> _standaloneRealms = Expando();
+  final Map<String, DesktopConnectionConfig> _savedConfigs = {};
+  final Set<String> _activeReconnectingRealms = {};
 
   final ValueNotifier<Set<String>> reconnectingRealms = ValueNotifier(const {});
 
@@ -99,7 +115,8 @@ class DesktopConnectionManager {
   void _recomputeReconnecting() {
     final realms = {
       for (final key in _pendingConnections.keys)
-        if (_everConnectedRealms.contains(key)) key.substring('session:'.length),
+        if (_everConnectedRealms.contains(key) && key.startsWith('session:')) key.substring('session:'.length),
+      ..._activeReconnectingRealms,
     };
     if (!setEquals(realms, reconnectingRealms.value)) reconnectingRealms.value = realms;
   }
@@ -160,6 +177,12 @@ class DesktopConnectionManager {
     required bool webRtcEnabled,
     required String privateKey,
   }) async {
+    _savedConfigs[realm] = DesktopConnectionConfig(
+      realm: realm,
+      authId: authId,
+      webRtcEnabled: webRtcEnabled,
+      privateKey: privateKey,
+    );
     final pendingKey = 'session:$realm';
     final pending = _pendingConnections[pendingKey];
     if (pending != null) {
@@ -332,7 +355,97 @@ class DesktopConnectionManager {
 
   Future<void> _handleNetworkChanged() async {
     _webRtcFailureCount.clear();
+
+    final realmsToReconnect = <String>{
+      for (final key in _connections.keys)
+        if (key.startsWith('session:')) key.substring('session:'.length),
+      for (final key in _pendingConnections.keys)
+        if (key.startsWith('session:')) key.substring('session:'.length),
+      for (final realm in _savedConfigs.keys)
+        if (_everConnectedRealms.contains('session:$realm')) realm,
+    };
+
+    if (realmsToReconnect.isNotEmpty) {
+      _activeReconnectingRealms.addAll(realmsToReconnect);
+      _recomputeReconnecting();
+    }
+
     await _runHeartbeat(strict: true);
+
+    for (final realm in realmsToReconnect) {
+      final key = 'session:$realm';
+      final conn = _connections[key];
+      if (conn != null && !conn.session.isConnected()) {
+        await _dropConnection(key, conn, reason: 'network changed');
+      }
+    }
+
+    if (ConnectivityService().hasConnection) {
+      for (final realm in realmsToReconnect) {
+        final config = _savedConfigs[realm];
+        if (config != null) {
+          unawaited(_reconnectRealm(config));
+        } else {
+          _activeReconnectingRealms.remove(realm);
+          _recomputeReconnecting();
+        }
+      }
+    } else {
+      _activeReconnectingRealms.clear();
+      _recomputeReconnecting();
+    }
+  }
+
+  Future<DesktopConnection?> _reconnectRealm(DesktopConnectionConfig config) async {
+    final realm = config.realm;
+    _log('reconnecting realm=$realm after network change');
+    _activeReconnectingRealms.add(realm);
+    _recomputeReconnecting();
+
+    DesktopConnection? connection;
+    try {
+      for (var attempt = 0; attempt < 3; attempt++) {
+        if (!ConnectivityService().hasConnection) break;
+        if (attempt > 0) {
+          await Future.delayed(Duration(milliseconds: 500 * (1 << (attempt - 1))));
+        }
+        try {
+          connection = await acquire(
+            realm: config.realm,
+            authId: config.authId,
+            webRtcEnabled: config.webRtcEnabled,
+            privateKey: config.privateKey,
+          );
+          await checkAgentOnline(connection.session, const Duration(seconds: 5));
+          connection.isAgentOnline = true;
+          _log('reconnect success realm=$realm p2p=${connection.isP2P}');
+          break;
+        } catch (e) {
+          _log('reconnect attempt $attempt failed for realm=$realm: $e');
+          connection = null;
+          if (attempt == 0 && config.webRtcEnabled && !kForceWebRtcOnly) {
+            try {
+              connection = await acquire(
+                realm: config.realm,
+                authId: config.authId,
+                webRtcEnabled: false,
+                privateKey: config.privateKey,
+              );
+              await checkAgentOnline(connection.session, const Duration(seconds: 5));
+              connection.isAgentOnline = true;
+              _log('reconnect fallback to routed success realm=$realm');
+              break;
+            } catch (_) {
+              connection = null;
+            }
+          }
+        }
+      }
+    } finally {
+      _activeReconnectingRealms.remove(realm);
+      _recomputeReconnecting();
+    }
+    return connection;
   }
 
   bool _heartbeatRunning = false;
@@ -445,5 +558,7 @@ class DesktopConnectionManager {
     _noWebRtcSupportRealms.clear();
     _webRtcFailureCount.clear();
     _everConnectedRealms.clear();
+    _savedConfigs.clear();
+    _activeReconnectingRealms.clear();
   }
 }

@@ -19,15 +19,24 @@ class QUICConnectionManager {
 
   void _handleNetworkChanged() {
     final root = _root;
-    if (root == null) return;
     _root = null;
-    unawaited(root.close());
+    _connecting = null;
+    if (root != null) {
+      unawaited(root.close());
+    }
   }
 
   Future<Session> openSession(String realm, QUICDialerConfig config) async {
     final root = _root;
     if (root != null && root.isConnected()) {
-      return _openRealmSession(root, realm, config);
+      try {
+        return await _openRealmSession(root, realm, config);
+      } catch (e) {
+        if (_root == root) {
+          _root = null;
+          unawaited(root.close());
+        }
+      }
     }
 
     final newRoot = await _connectRoot(realm, config);

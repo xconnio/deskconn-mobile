@@ -287,6 +287,8 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
 
   String? get _realm => widget.desktop['realm']?.toString();
 
+  StreamSubscription<void>? _networkSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -297,6 +299,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     unawaited(_loadDockAutoHide());
     unawaited(_loadLauncherOrder());
     ConnectivityService().addListener(_handleConnectivityChanged);
+    _networkSubscription = ConnectivityService().onNetworkChanged.listen((_) => _handleNetworkChanged());
     DesktopConnectionManager().reconnectingRealms.addListener(_handleReconnecting);
     WidgetsBinding.instance.addObserver(this);
     final handle = widget.handle;
@@ -326,6 +329,12 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       setState(
         () => _connectionStatus = connection.isP2P ? DesktopConnectionStatus.p2p : DesktopConnectionStatus.routed,
       );
+    } else {
+      if (!ConnectivityService().hasConnection) {
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
+      } else {
+        unawaited(_probeDesktopConnection());
+      }
     }
   }
 
@@ -369,6 +378,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _networkSubscription?.cancel();
     ConnectivityService().removeListener(_handleConnectivityChanged);
     DesktopConnectionManager().reconnectingRealms.removeListener(_handleReconnecting);
     final realm = _realm;
@@ -390,6 +400,18 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     if (mounted) unawaited(_probeDesktopConnection());
   }
 
+  void _handleNetworkChanged() {
+    if (!mounted) return;
+    if (!ConnectivityService().hasConnection) {
+      if (_connectionStatus != DesktopConnectionStatus.offline) {
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
+      }
+      return;
+    }
+    setState(() => _connectionStatus = DesktopConnectionStatus.checking);
+    unawaited(_probeDesktopConnection());
+  }
+
   void _handleConnectivityChanged() {
     if (!mounted) return;
     if (!ConnectivityService().hasConnection) {
@@ -399,6 +421,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
       return;
     }
     if (_connectionStatus == DesktopConnectionStatus.offline) {
+      setState(() => _connectionStatus = DesktopConnectionStatus.checking);
       unawaited(_probeDesktopConnection());
     }
   }
@@ -1062,31 +1085,45 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
     }
 
     final status = await _attemptConnection(realm, authId, privateKey, webRtcEnabled);
-    if (mounted) {
-      setState(() => _connectionStatus = status ?? DesktopConnectionStatus.offline);
-    }
     if (status != null) {
+      if (mounted) {
+        setState(() => _connectionStatus = status);
+      }
       final session = DesktopConnectionManager().get(realm)?.session;
       if (session != null) {
         unawaited(_refreshWallpaper(session));
         unawaited(_refreshManifestApps(session));
       }
+      return;
     }
 
-    if (status == null) {
-      unawaited(_retryInBackground(realm, authId, privateKey, webRtcEnabled));
+    if (mounted) {
+      setState(() => _connectionStatus = DesktopConnectionStatus.checking);
     }
+    unawaited(_retryInBackground(realm, authId, privateKey, webRtcEnabled));
   }
 
   Future<void> _retryInBackground(String realm, String authId, String privateKey, bool webRtcEnabled) async {
-    final status = await _attemptConnection(realm, authId, privateKey, webRtcEnabled);
-    if (status != null && mounted) {
-      setState(() => _connectionStatus = status);
-      final session = DesktopConnectionManager().get(realm)?.session;
-      if (session != null) {
-        unawaited(_refreshWallpaper(session));
-        unawaited(_refreshManifestApps(session));
+    for (var i = 0; i < 2; i++) {
+      await Future.delayed(Duration(milliseconds: 1000 * (i + 1)));
+      if (!mounted) return;
+      if (!ConnectivityService().hasConnection) {
+        setState(() => _connectionStatus = DesktopConnectionStatus.offline);
+        return;
       }
+      final status = await _attemptConnection(realm, authId, privateKey, webRtcEnabled);
+      if (status != null && mounted) {
+        setState(() => _connectionStatus = status);
+        final session = DesktopConnectionManager().get(realm)?.session;
+        if (session != null) {
+          unawaited(_refreshWallpaper(session));
+          unawaited(_refreshManifestApps(session));
+        }
+        return;
+      }
+    }
+    if (mounted) {
+      setState(() => _connectionStatus = DesktopConnectionStatus.offline);
     }
   }
 
@@ -1132,7 +1169,7 @@ class _DesktopDetailsScreenState extends State<DesktopDetailsScreen>
 
   Future<bool> _isDesktopAgentOnline(Session session) async {
     try {
-      await DesktopConnectionManager.checkAgentOnline(session, const Duration(seconds: 3));
+      await DesktopConnectionManager.checkAgentOnline(session, const Duration(seconds: 5));
       return true;
     } catch (e) {
       if (e.toString().toLowerCase().contains('wamp.error.no_such_procedure')) {

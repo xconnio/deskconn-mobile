@@ -89,6 +89,7 @@ class _MachineGridState extends State<MachineGrid> {
   final Set<String> _connectingRealms = {};
   final Map<String, Uint8List?> _wallpapers = {};
   Timer? _livenessTimer;
+  StreamSubscription<void>? _networkSubscription;
 
   void _onWallpaperChoice() {
     if (mounted) setState(() {});
@@ -106,11 +107,14 @@ class _MachineGridState extends State<MachineGrid> {
 
   _RowStatus _statusFor(String realm) {
     if (!ConnectivityService().hasConnection) return _RowStatus.offline;
+    if (DesktopConnectionManager().reconnectingRealms.value.contains(realm) || _connectingRealms.contains(realm)) {
+      return _RowStatus.connecting;
+    }
     final connection = DesktopConnectionManager().get(realm);
-    if (connection != null) {
+    if (connection != null && connection.isAgentOnline) {
       return connection.isP2P ? _RowStatus.p2p : _RowStatus.routed;
     }
-    return _connectingRealms.contains(realm) ? _RowStatus.connecting : _RowStatus.offline;
+    return _RowStatus.offline;
   }
 
   @override
@@ -119,6 +123,8 @@ class _MachineGridState extends State<MachineGrid> {
     _livenessTimer = Timer.periodic(const Duration(seconds: 15), (_) => _verifyAllLiveness());
     WallpaperChoice.choices.addListener(_onWallpaperChoice);
     ConnectivityService().addListener(_handleConnectivityChanged);
+    DesktopConnectionManager().reconnectingRealms.addListener(_handleReconnectingChanged);
+    _networkSubscription = ConnectivityService().onNetworkChanged.listen((_) => _handleNetworkChanged());
   }
 
   @override
@@ -126,7 +132,17 @@ class _MachineGridState extends State<MachineGrid> {
     _livenessTimer?.cancel();
     WallpaperChoice.choices.removeListener(_onWallpaperChoice);
     ConnectivityService().removeListener(_handleConnectivityChanged);
+    DesktopConnectionManager().reconnectingRealms.removeListener(_handleReconnectingChanged);
+    _networkSubscription?.cancel();
     super.dispose();
+  }
+
+  void _handleReconnectingChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _handleNetworkChanged() {
+    if (mounted) setState(() {});
   }
 
   void _handleConnectivityChanged() {
@@ -152,7 +168,7 @@ class _MachineGridState extends State<MachineGrid> {
     if (connection == null) return;
 
     try {
-      await DesktopConnectionManager.checkAgentOnline(connection.session, const Duration(seconds: 4));
+      await DesktopConnectionManager.checkAgentOnline(connection.session, const Duration(seconds: 5));
     } catch (_) {
       await DesktopConnectionManager().release(realm);
       if (mounted) setState(() {});

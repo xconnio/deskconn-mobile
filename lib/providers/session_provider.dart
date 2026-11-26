@@ -7,6 +7,7 @@ import 'package:deskconn_mobile_app/core/device/cryptosign_keys.dart';
 import 'package:deskconn_mobile_app/core/device/device_identity.dart';
 import 'package:deskconn_mobile_app/core/errors/deskconn_error_messages.dart';
 import 'package:deskconn_mobile_app/core/errors/deskconn_error_mapper.dart';
+import 'package:deskconn_mobile_app/core/network/connectivity_service.dart';
 import 'package:deskconn_mobile_app/core/operation_result.dart';
 import 'package:deskconn_mobile_app/core/wamp/desktop_connection_manager.dart';
 import 'package:deskconn_mobile_app/core/wamp/quic_connection_manager.dart';
@@ -18,6 +19,35 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionProvider extends ChangeNotifier {
   final _client = WampClient();
+  StreamSubscription<void>? _networkSubscription;
+
+  SessionProvider() {
+    _networkSubscription = ConnectivityService().onNetworkChanged.listen((_) => _handleNetworkChanged());
+  }
+
+  @override
+  void dispose() {
+    _networkSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleNetworkChanged() async {
+    if (!loggedIn || standalone != null) return;
+    try {
+      final old = session;
+      session = null;
+      try {
+        await old?.close();
+      } catch (_) {}
+
+      if (ConnectivityService().hasConnection) {
+        await _ensureSession();
+        await loadDesktops();
+      }
+    } catch (e) {
+      debugPrint('SessionProvider network changed reconnect error: $e');
+    }
+  }
 
   Session? session;
   Session? _signInSession;
